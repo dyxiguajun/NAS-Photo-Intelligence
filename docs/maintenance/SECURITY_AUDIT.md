@@ -10,7 +10,7 @@
 - **发现 18 个 Markdown 文档**曾含 NAS 私网 IP、Tailscale 地址、挂载路径、本机绝对路径或真实样本文件名；已完成脱敏。
 - 生产数据、原始/恢复媒体、完整索引、日志和报告目录已排除出版本控制。
 - 私有仓库 `dyxiguajun/NAS-Photo-Intelligence` 已创建；首次基线经 PR #1 合并到 `main`（merge commit `b5c8010`）。
-- 当前基线：85 个跟踪文件；无禁止路径；无 >1 MiB blob；自研扫描器 clean；`gitleaks` 历史扫描无泄漏。
+- 当前分支：87 个跟踪文件（基线 85 + 本 PR 2 个）；无禁止路径；无 >1 MiB blob；自研扫描器 clean；`gitleaks` 历史扫描无泄漏。
 
 ## 发现与处置
 

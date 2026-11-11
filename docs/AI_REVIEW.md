@@ -35,7 +35,7 @@ NAS-Photo-Intelligence 是一个**只读照片证据引擎**，用于整理中�
 
 - 仓库：`dyxiguajun/NAS-Photo-Intelligence`，private，默认分支 `main`。
 - 基线：PR #1 已合并，CI 在 Python 3.12 / 3.13 均通过。
-- 跟踪文件：85 个；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
+- 跟踪文件：87 个（基线 85 + 本审查入口与 `pre-push` 防护）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
 - 回归测试：干净 worktree 中 `112` 项通过。
 - 静态检查：`ruff check src tests tools` 通过。
 - 密钥扫描：自研扫描器 clean；`gitleaks` 对历史扫描无泄漏。

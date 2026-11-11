@@ -10,7 +10,7 @@
 - GitHub private 仓库：`dyxiguajun/NAS-Photo-Intelligence`，默认分支 `main`。
 - PR #1 已合并（merge commit `b5c8010`）；基线分支 `agent/opencode/git-baseline` @ `ce0b84a`。
 - CI 在 Python 3.12 / 3.13 均通过（PR #1：1m17s / 1m7s）。
-- 仓库跟踪 85 个文件；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
+- 仓库跟踪 87 个文件（基线 85 + 本 PR 的审查入口与 `pre-push`）；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
 - 干净 worktree 全量测试：`112` 项通过，`53.408s`。
 - 外部 AI 审查入口：`docs/AI_REVIEW.md`，README 与 `docs/ARCHITECTURE.md` 已链接。
 - `reports/agent-coordination/` 已由 Codex 建立；中央权威文件为 `PROJECT_STATUS.md`、`TASK_BOARD.md`、`DECISIONS.md`、`AGENT_REGISTRY.md`（`STATE.json` 不存在）。
