@@ -1,5 +1,6 @@
 """Read-only planning CLI over the local audit database."""
 from collections import Counter
+from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
@@ -35,6 +36,8 @@ def configure(parser):
     compare = sub.add_parser('reconcile')
     compare.add_argument('--source-manifest', required=True)
     compare.add_argument('--destination-manifest', required=True)
+    compare.add_argument('--source-sha256')
+    compare.add_argument('--destination-sha256')
     match_sha = sub.add_parser('match-sha')
     match_sha.add_argument('--frozen-manifest',required=True,type=Path)
     match_sha.add_argument('--manifest-sha256',required=True)
@@ -234,8 +237,15 @@ def run(args):
         return exercise_images(project/'tools/exiftool/exiftool') if args.image_fixtures else exercise()
     if command == 'reconcile':
         from .organize_reconcile import reconcile
-        manifests = [json.loads(Path(name).read_text()) for name in (args.source_manifest,args.destination_manifest)]
-        return reconcile(*manifests)
+        manifests, checksums = [], {}
+        for side,name,expected in (('source',args.source_manifest,args.source_sha256),
+                                   ('destination',args.destination_manifest,args.destination_sha256)):
+            raw = Path(name).read_bytes()
+            checksums[side] = sha256(raw).hexdigest()
+            if expected is not None and expected!=checksums[side]:
+                raise ValueError(f'{side} manifest SHA-256 mismatch')
+            manifests.append(json.loads(raw))
+        return {**reconcile(*manifests),'manifest_artifact_sha256':checksums}
     db_path = audit_path(project, args.database)
     with index.connect(db_path, write=command in ('register','ingest','ingest-evidence')) as db:
         if command in ('verify-evidence','ingest-evidence'):

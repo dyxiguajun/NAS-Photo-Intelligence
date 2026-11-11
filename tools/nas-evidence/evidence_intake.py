@@ -105,6 +105,7 @@ def import_results(db, path, manifest, job_id):
         else:
             commits.append({'version':version,'checkpoint_sha256':checksum,'rows':0})
     return {'source_id':manifest['source_id'],'manifest_sha256':job_id,'rows_planned':len(manifest['rows']),
+            'parent_manifest_sha256':manifest.get('parent_manifest_sha256'),
             'chunks_planned':len(expected),'chunks_collected':len(parsed),'counts':dict(counters),'commits':commits}
 
 

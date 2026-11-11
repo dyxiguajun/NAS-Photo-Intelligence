@@ -299,6 +299,9 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(result['other.jpg']['state'],'destination_not_observed')
         self.assertEqual(result['size.jpg']['state'],'same_size_sha_unverified')
         self.assertFalse(plan['execution_allowed'])
+        self.assertFalse(plan['all_content_verified'])
+        complete = snapshot('US',True,[('photo.jpg',10,DIGEST)])
+        self.assertTrue(reconcile(complete,{**complete,'scope':'CN'})['all_content_verified'])
 
     def test_bad_copy_never_published(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -49,4 +49,6 @@ def reconcile(source, destination):
     return {'source':{k:source[k] for k in ('scope','version','complete')},
             'destination':{k:destination[k] for k in ('scope','version','complete')},
             'source_paths':len(left),'destination_paths':len(right),'counts':count,
-            'source_bytes_by_state':bytes_by_state,'rows':rows,'execution_allowed':False}
+            'source_bytes_by_state':bytes_by_state,'rows':rows,'execution_allowed':False,
+            'all_content_verified':source['complete'] and destination['complete']
+                                   and count['verified_equal']==len(rows)}
