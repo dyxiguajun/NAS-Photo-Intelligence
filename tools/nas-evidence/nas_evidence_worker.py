@@ -8,16 +8,20 @@ from pathlib import Path, PurePosixPath
 import stat
 import subprocess
 import sys
+from tempfile import NamedTemporaryFile
 import time
 
 from nas_worker import identity, read_one
 
 PROFILE = 'native-sha256-exiftool-fast2-v1'
+LARGE_SHA_PROFILE = 'native-sha256-large-file-v1'
 MAX_ROWS = 50_000
 MAX_JOB_BYTES = 32 * 1024**3
 CHUNK_ROWS = 128
 CHUNK_BYTES = 256 * 1024**2
 FILE_BYTES = CHUNK_BYTES
+LARGE_FILE_BYTES = 8 * 1024**3
+LARGE_CHUNK_TIMEOUT = 900
 EXIF_FIELDS = ('ImageWidth', 'ImageHeight', 'DateTimeOriginal', 'OffsetTimeOriginal',
                'Make', 'Model', 'LensModel', 'GPSLatitude', 'GPSLongitude', 'Error', 'Warning')
 
@@ -33,16 +37,22 @@ def digest(path):
 def write_checkpoint(path, value):
     """Publish only complete results, including after a process restart."""
     data = canonical(value)
-    if path.exists():
-        if path.read_bytes() != data:
+
+    def verify_existing():
+        if path.is_symlink() or not path.is_file() or path.read_bytes() != data:
             raise ValueError(f'Checkpoint content conflict: {path}')
+
+    if path.exists() or path.is_symlink():
+        verify_existing()
         return
-    tmp = path.with_suffix('.tmp')
-    with tmp.open('wb') as handle:
+    with NamedTemporaryFile(prefix='.checkpoint-',dir=path.parent) as handle:
         handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
-    tmp.replace(path)
+        try:
+            os.link(handle.name,path)
+        except FileExistsError:
+            verify_existing()
     fd = os.open(path.parent, os.O_RDONLY)
     try:
         os.fsync(fd)
@@ -63,7 +73,8 @@ def job(path, *, runtime=None):
     if raw != canonical(manifest):
         raise ValueError('Manifest is not in canonical form')
     runtime = Path(__file__).parent if runtime is None else runtime
-    if manifest['profile'] != PROFILE or manifest['runner_sha256'] != digest(runtime/'nas_evidence_worker.py'):
+    if (manifest['profile'] not in (PROFILE,LARGE_SHA_PROFILE)
+            or manifest['runner_sha256'] != digest(runtime/'nas_evidence_worker.py')):
         raise ValueError('Manifest runner version mismatch')
     if manifest['reader_sha256'] != digest(runtime/'nas_worker.py'):
         raise ValueError('Manifest SHA reader version mismatch')
@@ -71,14 +82,17 @@ def job(path, *, runtime=None):
     if safe_path(manifest['source_id']).parts != (manifest['source_id'],):
         raise ValueError('Invalid source identity')
     rows = manifest['rows']
+    large = manifest['profile']==LARGE_SHA_PROFILE
+    limit = LARGE_FILE_BYTES if large else FILE_BYTES
     seen = set()
     total = 0
     for row in rows:
         safe_path(row['path'])
         size, mtime_ns, ctime_ns = row['stat']
-        if (any(type(n) is not int for n in (size, mtime_ns, ctime_ns)) or not 0 <= size <= FILE_BYTES
+        if (any(type(n) is not int for n in (size, mtime_ns, ctime_ns)) or not 0 <= size <= limit
                 or row['path'] in seen or not row['ops'] or sorted(set(row['ops'])) != row['ops']
-                or set(row['ops']) - {'sha256', 'metadata'}):
+                or set(row['ops']) - {'sha256', 'metadata'}
+                or (large and (size<=FILE_BYTES or row['ops']!=['sha256']))):
             raise ValueError('Invalid or repeated manifest row')
         seen.add(row['path'])
         total += size
@@ -208,11 +222,13 @@ def run(args):
     if scratch.name != job_id:
         raise ValueError('Job directory must match the manifest digest')
     started = time.monotonic()
+    large = manifest['profile']==LARGE_SHA_PROFILE
     with (scratch.parent / '.worker.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        observed = subprocess.check_output([args.exiftool, '-ver'], text=True, timeout=10).strip()
-        if observed != manifest['exiftool_version']:
-            raise ValueError(f'ExifTool version differs from manifest: {observed}')
+        if not large:
+            observed = subprocess.check_output([args.exiftool, '-ver'], text=True, timeout=10).strip()
+            if observed != manifest['exiftool_version']:
+                raise ValueError(f'ExifTool version differs from manifest: {observed}')
         for number, batch in enumerate(chunks(manifest['rows']), 1):
             target = scratch / f'{number:05}.json'
             if target.exists():
@@ -226,7 +242,7 @@ def run(args):
             tick = time.monotonic()
             process = subprocess.run(
                 [sys.executable, '-B', str(Path(__file__).resolve()), 'capture', '--exiftool', args.exiftool],
-                cwd=scope, input=canonical(batch), capture_output=True, timeout=80)
+                cwd=scope, input=canonical(batch), capture_output=True, timeout=LARGE_CHUNK_TIMEOUT if large else 80)
             if process.returncode:
                 raise RuntimeError(f'Chunk {number} did not commit: ' + process.stderr.decode(errors='replace')[-1000:])
             result = {'manifest_sha256': job_id, 'chunk': number, 'records': json.loads(process.stdout)}

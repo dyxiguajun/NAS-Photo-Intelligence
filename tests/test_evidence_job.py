@@ -1,4 +1,6 @@
 from argparse import Namespace
+from concurrent.futures import ThreadPoolExecutor
+import errno
 from hashlib import sha256
 from pathlib import Path
 import json
@@ -9,6 +11,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 import time
 
 from PIL import Image
@@ -18,11 +21,85 @@ from nas_photo.organize_index import apply_batch, connect, register_sources
 PROJECT = Path(__file__).resolve().parents[1]
 EVIDENCE_ROOT = PROJECT/'tools/nas-evidence'
 sys.path.insert(0,str(EVIDENCE_ROOT))
-from nas_evidence_worker import PROFILE, canonical, digest, identity, run, validate_result
-from evidence_intake import READER, WORKER, import_results, plan
+from nas_evidence_worker import FILE_BYTES, LARGE_SHA_PROFILE, PROFILE, canonical, digest, identity, run, validate_result, write_checkpoint
+from evidence_intake import READER, WORKER, import_results, plan, verified_checkpoints
 
 
 class EvidenceJobTest(unittest.TestCase):
+    def test_large_sha_profile_hashes_one_large_file_without_exiftool(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            media = base/'media'
+            source = media/'source'
+            source.mkdir(parents=True)
+            large = source/'large.png'
+            with large.open('wb') as handle:
+                handle.truncate(FILE_BYTES+1)
+            small = source/'small.png'
+            small.write_bytes(b'small')
+            scope = {'source_id':'source','device_id':'test','logical_root':'source'}
+            with connect(base/'audit.sqlite3',write=True) as db:
+                register_sources(db,[scope])
+                apply_batch(db,'source','base',[{'path':p.name,'stat':list(identity(p.stat()))} for p in (large,small)])
+                manifest = plan(db,'source',10,FILE_BYTES+1,'unused',large_sha=True)
+                self.assertEqual(manifest['profile'],LARGE_SHA_PROFILE)
+                self.assertEqual([(row['path'],row['ops']) for row in manifest['rows']],[('large.png',['sha256'])])
+                job_id = sha256(canonical(manifest)).hexdigest()
+                path = base/'jobs'/job_id/'manifest.json'
+                path.parent.mkdir(parents=True)
+                write_checkpoint(path,manifest)
+                run(Namespace(manifest=path,media_root=media,exiftool='no-such-exiftool',seconds=10,yield_busy=False))
+                report = import_results(db,path,manifest,job_id)
+                self.assertEqual(report['counts'],{'rows_observed':1,'sha256_success':1,'metadata_success':0,
+                                                 'metadata_file_error':0})
+                expected = sha256()
+                for _ in range(FILE_BYTES//(1024**2)):
+                    expected.update(bytes(1024**2))
+                expected.update(b'\0')
+                checkpoint = json.loads((path.parent/'00001.json').read_bytes())
+                self.assertEqual(checkpoint['records'][0]['sha256'],expected.hexdigest())
+
+    def test_checkpoint_publish_is_immutable_under_competing_writers(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)/'00001.json'
+
+            def publish(value):
+                try:
+                    write_checkpoint(target,{'value':value})
+                    return value
+                except ValueError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                winners = [value for value in pool.map(publish,[1,2]) if value is not None]
+            self.assertEqual(len(winners),1)
+            self.assertEqual(target.read_bytes(),canonical({'value':winners[0]}))
+            self.assertEqual(list(target.parent.iterdir()),[target])
+
+    def test_checkpoint_enospc_leaves_no_completion_and_can_resume(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)/'00001.json'
+            with patch('nas_evidence_worker.os.fsync',side_effect=OSError(errno.ENOSPC,'injected')):
+                with self.assertRaises(OSError) as failure:
+                    write_checkpoint(target,{'value':1})
+            self.assertEqual(failure.exception.errno,errno.ENOSPC)
+            self.assertFalse(target.exists())
+            self.assertEqual(list(target.parent.iterdir()),[])
+            write_checkpoint(target,{'value':1})
+            self.assertEqual(target.read_bytes(),canonical({'value':1}))
+
+    def test_checkpoint_intake_rejects_gaps_and_unverified_payloads(self):
+        row = {'path':'x.png','stat':[3,1,2],'ops':['sha256']}
+        manifest = {'rows':[row]}
+        result = {'manifest_sha256':'a'*64,'chunk':1,'records':[
+            {'path':'x.png','stat':[3,1,2],'errors':{},'sha256':'b'*64}]}
+        self.assertEqual(verified_checkpoints([('00001.json',result)],manifest,'a'*64),
+                         [('00001.json',result)])
+        with self.assertRaisesRegex(ValueError,'Non-contiguous'):
+            verified_checkpoints([('00002.json',result)],manifest,'a'*64)
+        with self.assertRaisesRegex(ValueError,'Incomplete'):
+            verified_checkpoints([('00001.json',{**result,'records':[]})],manifest,'a'*64)
+
     def test_sigkill_during_second_chunk_resumes_to_identical_checkpoints(self):
         with TemporaryDirectory() as tmp:
             base = Path(tmp).resolve()
