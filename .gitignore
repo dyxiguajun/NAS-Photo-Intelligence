@@ -1,0 +1,54 @@
+# Default deny: only explicitly allow-listed source, tests and documentation.
+*
+!*/
+!.gitignore
+!pyproject.toml
+!requirements*.txt
+!ruff.toml
+!nas_photo_cli.py
+!/*.md
+!.github/workflows/
+!.github/workflows/*.yml
+!.githooks/*
+
+# Source and tests
+!src/**
+!tests/**
+!docs/**
+docs/phases/evidence/
+!config/example.json
+!config/manifest.example.json
+
+# Local maintenance tooling (no bundled binaries)
+!tools/*.py
+!tools/maintenance/**
+!tools/nas-evidence/*.py
+!tools/nas-evidence/Dockerfile
+!tools/nas-evidence/*.sh
+
+# Runtime, data and generated material stay local even if a broad allow rule changes
+__pycache__/
+*.pyc
+data/
+logs/
+cache/
+reports/
+private/
+.venv/
+tools/exiftool/
+docs/phases/evidence/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.csv
+*.jsonl
+*.log
+*.tar.gz
+config/local.json
+config/phase0_samples.json
+config/phase2_single_sample.json
+config/phase2-compat.json
+config/migration-test.json
+config/phase3_*.json
+phase0_*.json
+.DS_Store

@@ -1,0 +1,23 @@
+# Conservative baseline: block syntax errors and undefined names now.
+# Pull requests additionally lint and format-check only the files they change,
+# so existing Codex/DSH code is not mass-reformatted.
+target-version = "py311"
+line-length = 160
+
+extend-exclude = [
+  ".git",
+  ".venv",
+  ".ruff_cache",
+  ".pytest_cache",
+  "build",
+  "cache",
+  "data",
+  "dist",
+  "logs",
+  "private",
+  "reports",
+  "tools/exiftool",
+]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]

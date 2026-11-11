@@ -1,0 +1,65 @@
+# OpenCode 安全审计记录
+
+日期：2026-11-11
+范围：`/Users/xigua/Desktop/Program_Projects/NAS-Photo-Intelligence` 全目录，重点为拟纳入 Git 的文件。
+方法：按 `.gitignore` 计算候选文件；扫描凭据模式、私网地址、绝对路径、真实媒体文件名、文件体积；检查现有索引与本地配置边界。
+
+## 结论
+
+**未发现私钥、GitHub token、AWS key、Slack/OpenAI token 或密码赋值。**
+**发现 18 个 Markdown 文档含 NAS 私网 IP、Tailscale 地址、挂载路径、本机绝对路径或真实样本文件名；已完成脱敏。**
+**原始证据目录与生产数据目录已排除出版本控制。**
+
+## 发现与处置
+
+| # | 严重度 | 发现 | 处置 |
+|---|---|---|---|
+| 1 | 高 | 项目不是 Git 仓库，无历史可审计 | 本地 `git init -b main`；未添加 remote；首次推送前另行确认 |
+| 2 | 高 | `HANDOFF.md`、`PROJECT_INSPECTION_2026-10-17.md`、`README.md` 及 `docs/` 中 18 个文件含 Tailscale IP、LAN IP、挂载路径、本机路径 | 替换为 `<TAILSCALE_NAS_IP>`、`<LAN_NAS_IP>`、`<NAS_SHARE>`、`<PROJECT_ROOT>`、`<HOME>` 等占位符；原文件备份 |
+| 3 | 高 | `docs/phases/evidence/` 含真实样本绝对路径、文件名、机器环境与读取统计 | 整目录排除（`.gitignore`） |
+| 4 | 高 | `docs/phases/PHASE0_REPORT.md` 等含真实照片文件名与样本 SHA-256 | 文件名替换为 `<restore-01>` 等占位符；样本哈希替换为占位符 |
+| 5 | 高 | `config/local.json`、`config/phase*.json` 含真实 NAS 挂载根与来源布局 | 保持忽略；仅提交 `config/example.json`、`config/manifest.example.json` |
+| 6 | 中 | `reports/` 约 1.3 GB，含 DSH 研究、协调消息、索引与日志 | 整目录忽略；协调消息保留在本地 |
+| 7 | 中 | `tools/exiftool/` 约 45 MB，上游二进制 | 忽略；由 `tools/install_exiftool.py` 在本地安装并核验 |
+| 8 | 中 | `tests/test_evidence_job.py` 从被忽略的 `reports/datarestore-audit/` 导入模块 | CI 中显式 skip；请求 DSH 发布到受版本控制路径（OC-005） |
+| 9 | 低 | `tools/nas-evidence/run-container.sh` 含 NAS 卷路径与固定镜像摘要 | 属部署参数而非凭据；已加隔离契约测试，待 Codex 确认最终路径 |
+| 10 | 低 | 生产 SQLite、备份与 CSV/JSONL 可能被误加入 | `.gitignore` 增加 `*.sqlite3`、`*.db`、`*.csv`、`*.jsonl`、`*.log` 规则 |
+
+## 脱敏映射（示例）
+
+| 原值类型 | 占位符 |
+|---|---|
+| Tailscale NAS 地址 | `<TAILSCALE_NAS_IP>` |
+| 局域网 NAS 地址 | `<LAN_NAS_IP>` |
+| Tailscale 客户端地址 | `<TAILSCALE_CLIENT_IP>` |
+| NAS 设备名 | `<NAS_NAME>` |
+| 共享挂载路径 | `/Volumes/<NAS_SHARE>` |
+| 本机项目绝对路径 | `<PROJECT_ROOT>` |
+| 本机用户目录 | `<HOME>` |
+| 真实样本文件名 | `<restore-01>.jpg`、`<mobile-02>.jpeg` 等 |
+| 真实样本 SHA-256 | `<sha256-of-private-sample>` |
+
+原始文档备份：`private/backups/docs-pre-sanitize-20261111.tar.gz`（`private/` 已被忽略）。
+
+## 版本控制边界
+
+纳入：源码、测试、工具脚本、Docker 配置、文档、示例配置、CI 配置。
+排除：原始/恢复媒体、生产 SQLite、CSV/JSONL、日志、报告、缓存、虚拟环境、ExifTool 二进制、真实样本清单、本地凭据、协调消息。
+
+## 自动验证
+
+```sh
+python tools/maintenance/scan_secrets.py
+.venv/bin/python -m unittest tests.test_repository_policy -v
+.venv/bin/python -m unittest discover -s tests
+```
+
+`scan_secrets.py` 检查：私钥块、GitHub token、AWS access key、Slack/OpenAI token、通用密码/密钥赋值、Tailscale CGNAT 地址。
+`test_repository_policy.py` 检查：受禁路径/扩展名未被跟踪、`.gitignore` 关键项存在、单文件不超过 2 MiB。
+
+## 残余风险
+
+- 仓库尚未创建，GitHub 侧可见性、协作者、分支保护、Actions 权限尚未配置。
+- 历史文档已脱敏，但原始备份仍在本机 `private/`；该目录必须保持忽略且不进入任何同步工具。
+- 若未来将 `reports/` 或 `docs/phases/evidence/` 纳入版本控制，必须先重新审计并取得用户确认。
+- 首次推送后应启用 secret scanning / push protection（若账号套餐支持）并检查 Actions 权限。

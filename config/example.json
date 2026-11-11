@@ -1,0 +1,45 @@
+{
+  "devices": {
+    "nas-device": {
+      "mount_root": "/Volumes/photo-share"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "phone-backup",
+      "device_id": "nas-device",
+      "logical_root": "Photos/MobileBackup",
+      "description": "A distinct logical photo source"
+    }
+  ],
+  "tools": {
+    "exiftool": "tools/exiftool/exiftool",
+    "ffprobe": "ffprobe"
+  },
+  "paths": {
+    "database": "data/index.sqlite3",
+    "logs": "logs",
+    "cache": "cache",
+    "reports": "reports"
+  },
+  "rules": {
+    "early_filesystem_before": "2000-01-01",
+    "conflict_tolerance_hours": 12,
+    "future_tolerance_days": 30
+  },
+  "limits": {
+    "max_files": 200,
+    "file_timeout_seconds": 60,
+    "max_attempts": 2,
+    "run_budget_seconds": 900,
+    "max_file_bytes": 536870912
+  },
+  "visual_limits": {
+    "max_read_bytes": 268435456,
+    "max_file_bytes": 67108864,
+    "max_pixels": 16000000,
+    "max_dimension": 16000,
+    "max_rss_mb": 512,
+    "external_read_reserve_bytes": 536870912
+  }
+}

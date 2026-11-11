@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libimage-exiftool-perl ffmpeg
+          mkdir -p tools/exiftool
+          ln -sf "$(command -v exiftool)" tools/exiftool/exiftool
+
+      - name: Install project and dev tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[visual]"
+          python -m pip install -r requirements-dev.txt
+
+      - name: Verify dependency consistency
+        run: python -m pip check
+
+      - name: Scan tracked files for credentials and private network IDs
+        run: python tools/maintenance/scan_secrets.py
+
+      - name: Static checks (syntax and undefined names)
+        run: ruff check src tests tools
+
+      - name: Format check (changed Python files)
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+          if [ -n "$base" ]; then
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.py')
+            if [ "${#files[@]}" -gt 0 ]; then
+              ruff format --check --line-length 160 "${files[@]}"
+            fi
+          fi
+
+      - name: Compile all Python sources
+        run: python -m compileall -q src tests tools
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v

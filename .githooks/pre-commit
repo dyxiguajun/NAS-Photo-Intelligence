@@ -1,0 +1,44 @@
+#!/bin/sh
+# Local guardrails for the NAS-Photo-Intelligence repository.
+# Enable once per clone: git config core.hooksPath .githooks
+set -eu
+
+limit=1048576
+failed=0
+
+check_path() {
+    path=$1
+    case "$path" in
+        data/*|reports/*|logs/*|cache/*|private/*|.venv/*|tools/exiftool/*|docs/phases/evidence/*)
+            echo "pre-commit: forbidden data/evidence path: $path" >&2
+            failed=1
+            ;;
+    esac
+    case "$path" in
+        *.sqlite3|*.db|*.csv|*.jsonl|*.log|*.jpg|*.jpeg|*.png|*.heic|*.mov|*.mp4|*.dng|*.cr2|*.nef)
+            echo "pre-commit: forbidden data/media extension: $path" >&2
+            failed=1
+            ;;
+    esac
+    size=$(git cat-file -s ":$path" 2>/dev/null || echo 0)
+    if [ "$size" -gt "$limit" ]; then
+        echo "pre-commit: $path is $size bytes, above the 1 MiB limit" >&2
+        failed=1
+    fi
+}
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+git diff --cached --name-only --diff-filter=ACMR > "$tmp"
+while IFS= read -r path; do
+    [ -n "$path" ] && check_path "$path"
+done < "$tmp"
+
+if [ "$failed" -ne 0 ]; then
+    echo "pre-commit: commit blocked; fix the staged files or get explicit approval." >&2
+    exit 1
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+    python3 tools/maintenance/scan_secrets.py
+fi
