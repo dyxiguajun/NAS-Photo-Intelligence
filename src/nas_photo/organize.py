@@ -35,6 +35,10 @@ def configure(parser):
     compare = sub.add_parser('reconcile')
     compare.add_argument('--source-manifest', required=True)
     compare.add_argument('--destination-manifest', required=True)
+    match_sha = sub.add_parser('match-sha')
+    match_sha.add_argument('--frozen-manifest',required=True,type=Path)
+    match_sha.add_argument('--manifest-sha256',required=True)
+    match_sha.add_argument('--objects',required=True,type=Path)
     preflight = sub.add_parser('prepare-build')
     preflight.add_argument('--plan', required=True)
     preflight.add_argument('--output', required=True)
@@ -117,8 +121,8 @@ def output_plan(db, output, reviewed_groups=(), candidate_queries=()):
             'l1-equal-pixels-review.jsonl':(r for r in items if 'l1_review_representative' in r),
             'no-confirmed-alternative.jsonl':(r for r in items if r['action'] == 'retain_pending_search'),
             'confirmed-retain.jsonl':(r for r in items if r['state']=='present' and (
-                                      r['action'] in ('retain_pending_search','retain_recovery_review')
-                                      or r.get('l0_preferred')==r['source'])),
+                                      r.get('recovery_protection') or not r.get('l0_preferred')
+                                      or r['l0_preferred']==r['source'])),
             'recovery-source-protection.jsonl':(r for r in items if r.get('recovery_protection')),
             'manual-review.jsonl':(r for r in items if r['action'] != 'retain_pending_search'
                                    or tuple(r['source']) in unresolved or r['decode_status']=='failed'),
@@ -257,6 +261,9 @@ def run(args):
             return index.status(db)
         if command == 'manifest':
             return source_manifest(db,args.source)
+        if command == 'match-sha':
+            from .organize_sha import exact_matches
+            return exact_matches(db,args.frozen_manifest,args.manifest_sha256,args.objects)
         if command == 'simulate':
             reviewed = json.loads(Path(args.reviewed_groups).read_text()) if args.reviewed_groups else ()
             queries = json.loads(Path(args.candidate_queries).read_text()) if args.candidate_queries else ()

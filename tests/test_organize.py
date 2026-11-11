@@ -11,6 +11,7 @@ from nas_photo import organize, organize_decisions as decisions, organize_index 
 from nas_photo import organize_evidence as evidence
 from nas_photo.organize_exercise import checksum, exercise, verified_copy
 from nas_photo.organize_reconcile import reconcile
+from nas_photo.organize_sha import exact_matches
 
 DIGEST = 'a' * 64
 
@@ -26,6 +27,25 @@ def item(path, *, source='restored', size=20, decode='valid', width=180, height=
 
 
 class InventoryTest(unittest.TestCase):
+    def test_object_sha_lookup_uses_frozen_revision_and_does_not_export_paths(self):
+        with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
+            index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
+            index.apply_batch(db,'one','v1',[observation(sha256=DIGEST)])
+            frozen = Path(tmp)/'frozen.jsonl'
+            frozen.write_text(json.dumps({'source':['one','asset.jpg'],'state':'present','stat':[20,1,2]})+'\n')
+            digest = hashlib.sha256(frozen.read_bytes()).hexdigest()
+            objects = Path(tmp)/'objects.jsonl'
+            objects.write_text(json.dumps({'object_sha256':DIGEST,'length':20})+'\n')
+            result = exact_matches(db,frozen,digest,objects)
+            self.assertEqual(result['counts'],{'exact_match_in_verified_scope':1})
+            self.assertNotIn('asset.jpg',json.dumps(result))
+            index.apply_batch(db,'one','v2',[observation(mtime=4,sha256=DIGEST)])
+            result = exact_matches(db,frozen,digest,objects)
+            self.assertEqual(result['counts'],{'no_exact_match_in_verified_scope':1})
+            self.assertEqual(result['inventory_sha_verified_at_frozen_revision'],0)
+            with self.assertRaisesRegex(ValueError,'checksum'):
+                exact_matches(db,frozen,'b'*64,objects)
+
     def test_replay_reuse_modification_and_absence(self):
         with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'index.sqlite3', write=True) as db:
             index.register_sources(db, [{'source_id':'one','device_id':'test','logical_root':'first'},
@@ -74,6 +94,20 @@ class InventoryTest(unittest.TestCase):
 
 
 class DecisionsTest(unittest.TestCase):
+    def test_pixel_identical_encodings_remain_in_confirmed_retain_export(self):
+        with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
+            index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
+            visual = {'status':'valid','pipeline_key':'test','pixel_sha256':'c'*64}
+            index.apply_batch(db,'one','v1',[
+                observation('capture.jpg',sha256=DIGEST,visual=visual,metadata={'model':'camera'}),
+                observation('capture.png',sha256='b'*64,visual=visual,metadata={'make':'maker'}),
+            ],coverage='complete')
+            output = Path(tmp)/'plan'
+            organize.output_plan(db,output)
+            retained = [json.loads(line) for line in (output/'confirmed-retain.jsonl').read_text().splitlines()]
+            self.assertEqual({tuple(row['source']) for row in retained},{('one','capture.jpg'),('one','capture.png')})
+            self.assertEqual((output/'future-cleanup-review.jsonl').read_text(),'')
+
     def test_exact_decision_prefers_verified_decode(self):
         a = item('a.jpg', decode='failed', sha256=DIGEST)
         b = item('b.jpg', sha256=DIGEST)

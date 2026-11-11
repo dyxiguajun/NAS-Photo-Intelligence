@@ -9,6 +9,19 @@ from agent_sync import AGENTS, acknowledge, send, sync
 
 
 class AgentSyncTest(unittest.TestCase):
+    def test_symlinked_outbox_does_not_interrupt_other_sender(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            unsafe = root/AGENTS['dsh']/'outbox'
+            unsafe.parent.mkdir(parents=True)
+            unsafe.symlink_to(root/'other',target_is_directory=True)
+            sent = send(root,'opencode',recipients=['codex'],kind='INFO',task_id='NAS-005',
+                        priority='P1',body='Valid independent message',artifacts=[],manifest_sha256='c'*64)
+            received = sync(root,'codex')
+            self.assertEqual([m['message_id'] for m in received['inbox']],[sent['message_id']])
+            self.assertEqual(len(received['errors']),1)
+            self.assertFalse(received['outboxes']['dsh']['present'])
+
     def test_atomic_publish_read_and_receipt(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()

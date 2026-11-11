@@ -181,7 +181,11 @@ def read_messages(project, agent):
     for sender, area in AGENTS.items():
         if sender==agent:
             continue
-        outbox = within(project,area/'outbox')
+        try:
+            outbox = within(project,area/'outbox')
+        except (OSError,ValueError) as error:
+            errors.append({'path':str(area/'outbox'),'error':str(error)})
+            continue
         candidates = [*outbox.glob('*.json'), *(path for path in outbox.glob('*.md') if path.name!='README.md')]
         for path in sorted(candidates):
             try:
@@ -223,8 +227,10 @@ def sync(project, agent, include_read=False):
         processed = False
         if receipt.exists():
             try:
+                if receipt.is_symlink() or not receipt.is_file() or receipt.stat().st_size>MAX_BYTES:
+                    raise ValueError('Expected a small regular receipt file')
                 row = json.loads(receipt.read_bytes())
-                if (receipt.is_symlink() or row['message_id']!=item['message_id'] or row['recipient']!=agent
+                if (row['message_id']!=item['message_id'] or row['recipient']!=agent
                         or datetime.fromisoformat(row['processed_at']).utcoffset() is None):
                     raise ValueError('Receipt identity or time mismatch')
                 processed = True
@@ -233,12 +239,21 @@ def sync(project, agent, include_read=False):
         if include_read or not processed:
             inbox.append({**item,'processed':processed,'version_status':
                           'manifest_declared' if item.get('manifest_sha256') else 'legacy_manifest_unspecified'})
+    outboxes = {}
+    for sender,area in AGENTS.items():
+        directory = area/'outbox'
+        try:
+            present = within(project,directory).is_dir()
+        except (OSError,ValueError) as error:
+            present = False
+            if sender==agent:
+                errors.append({'path':str(directory),'error':str(error)})
+        outboxes[sender] = {'path':str(directory),'present':present}
     return {'agent':agent,
             'project_status':str(CENTRAL/'PROJECT_STATUS.md'),'task_board':str(CENTRAL/'TASK_BOARD.md'),
             'decision_log':str(CENTRAL/'DECISIONS.md'),
             'authoritative_state':str(CENTRAL/'STATE.json'),
-            'outboxes':{sender:{'path':str(area/'outbox'),'present':within(project,area/'outbox').is_dir()}
-                        for sender,area in AGENTS.items()},
+            'outboxes':outboxes,
             'inbox':inbox,'errors':errors}
 
 
