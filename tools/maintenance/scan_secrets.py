@@ -28,6 +28,8 @@ PATTERNS = (
     ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
     ("openai-key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
     ("generic-secret-assignment", re.compile(r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*['\"][^'\"]{12,}['\"]")),
+    # Local macOS home paths can reveal usernames and workspace layout.
+    ("local-home-path", re.compile(r"(?<![\w.])/Users/[A-Za-z0-9._-]+/")),
     # Tailscale uses 100.64.0.0/10; these addresses identify a private tailnet.
     ("tailscale-cgnat", re.compile(r"\b100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d{1,3}\.\d{1,3}\b")),
 )

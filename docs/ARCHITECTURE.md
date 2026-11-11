@@ -1,5 +1,25 @@
 # Phase 1～3 架构和数据库
 
+## 仓库地图与三 Agent 分工
+
+| 组件 | 位置 | 职责 |
+|---|---|---|
+| `nas-photo` CLI | `src/nas_photo/cli.py` | 元数据扫描、精确重复、视觉证据、整理模拟 |
+| SQLite 证据库 | `src/nas_photo/store.py`、`migrations.py` | WAL、事务、队列、观察历史与 schema 迁移 |
+| 元数据/哈希/视觉 | `engine.py`、`duplicates.py`、`similarity.py`、`imaging.py` | 有界读取、隔离 worker、恢复与报告 |
+| Docker Czkawka | `tools/czkawka_docker_batch.py` | fnOS 上固定镜像、只读扫描、案例级检查点 |
+| NAS 证据 worker | `tools/nas-evidence/` | NAS 侧可恢复 SHA-256/ExifTool 观察 |
+| 三 Agent 通信 | `tools/agent_sync.py` | 本地追加式消息、原子发布、去重与回执 |
+| CI/质量 | `.github/workflows/ci.yml`、`tests/`、`tools/maintenance/` | 测试、静态检查、密钥扫描 |
+
+三 Agent 分工：
+
+- **Codex**：一级负责人；架构、主工程代码、权威数据库、Docker 集成、最终集成与验收。
+- **DSH**：二级负责人；视觉匹配、HEIC/PNG/JPEG 媒体分析、损坏恢复、参考库与算法验证。
+- **OpenCode**：三级负责人；GitHub、CI、独立审计、故障注入、SQLite/Docker 可靠性、质量保障。
+
+GitHub 只包含可审查的源码、测试、文档和脱敏示例。运行时协调、完整报告、生产索引和媒体保留在本地；外部审查入口见 `docs/AI_REVIEW.md`。
+
 ## 输入与输出
 
 来源配置定义 `device_id`、稳定 `source_id`、`logical_root`；网络地址是背景信息，`mount_root` 是可变访问入口。文件身份是数据库唯一约束 `(source_id, relative_path)`，不包含 IP、挂载名称、inode 或绝对路径。

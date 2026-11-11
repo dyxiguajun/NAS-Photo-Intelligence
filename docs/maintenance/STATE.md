@@ -7,13 +7,31 @@
 
 ## 当前事实（以工作区实测为准）
 
-- 项目此前**不是 Git 仓库**。2026-11-11 已在本地执行 `git init -b main`；**尚未配置 remote，尚未首次推送**。
-- 维护前基线：`98` 项 unittest 通过，耗时 `61.737s`（`.venv/bin/python`，Python 3.14.0）。
-- 当前全量：`112` 项 unittest 通过，耗时 `51.920s`（含 Codex/DSH 同期新增的同步、证据导入与库存测试）。
-- 维护新增：`8` 项测试（仓库边界、库存幂等/计数、Docker 隔离契约），已通过。
-- SQLite 生产库 schema 3；`data/`、`reports/`、`logs/`、`cache/`、`private/`、`.venv/`、`tools/exiftool/` 均不进入版本控制。
-- Codex 与 DSH 正在同一工作区活跃（`src/nas_photo/organize_transfer.py`、`tools/nas-evidence/`、`reports/datarestore-audit/`）。OpenCode 不修改其实时文件。
-- 共享协调中心尚未由 Codex 建立；OpenCode 只写自己的 `reports/agent-coordination/opencode/outbox/`。
+- GitHub private 仓库：`dyxiguajun/NAS-Photo-Intelligence`，默认分支 `main`。
+- PR #1 已合并（merge commit `b5c8010`）；基线分支 `agent/opencode/git-baseline` @ `ce0b84a`。
+- CI 在 Python 3.12 / 3.13 均通过（PR #1：1m17s / 1m7s）。
+- 仓库跟踪 85 个文件；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
+- 干净 worktree 全量测试：`112` 项通过，`53.408s`。
+- 外部 AI 审查入口：`docs/AI_REVIEW.md`，README 与 `docs/ARCHITECTURE.md` 已链接。
+- `reports/agent-coordination/` 已由 Codex 建立；中央权威文件为 `PROJECT_STATUS.md`、`TASK_BOARD.md`、`DECISIONS.md`、`AGENT_REGISTRY.md`（`STATE.json` 不存在）。
+- DSH evidence worker/intake 已发布到 `tools/nas-evidence/`。
+- 共享主工作区仍有 Codex/DSH 未提交改动；OpenCode 使用独立分支/worktree，不并发修改其文件。
+
+## GitHub 保护限制
+
+GitHub Free 私有仓库不支持服务端分支保护或 rulesets；secret scanning / push protection 也不可用。
+
+| 能力 | 状态 | 证据 |
+|---|---|---|
+| 分支保护 / rulesets | 不可用 | API 403：`Upgrade to GitHub Pro or make this repository public` |
+| Secret scanning | 不可用 | API 422：`Secret scanning is not available for this repository` |
+| Push protection | 不可用 | 同上 |
+
+补偿措施：
+
+- 所有日常改动走独立分支 + PR；CI 每次 PR 运行。
+- 本地 `.githooks/pre-push` 阻止直接推送 `main`；紧急情况才允许 `--no-verify`。
+- 不擅自将私有仓库改为公开；升级 GitHub Pro 需用户/Codex 决策。
 
 ## 仓库边界
 
@@ -21,34 +39,36 @@
 |---|---|
 | `src/`、`tests/`、`tools/*.py`、`tools/*/Dockerfile`、`docs/`、示例配置 | 纳入 Git |
 | `data/`、生产 SQLite、原始/恢复媒体 | 不纳入 |
-| `reports/`（含协调消息、DSH 研究、1.3G 报告） | 不纳入 |
+| `reports/`（含协调消息、DSH 研究、大型报告） | 不纳入 |
 | `logs/`、`cache/`、`private/`、`.venv/`、`tools/exiftool/` | 不纳入 |
 | `config/local.json`、`config/phase*.json`、`docs/phases/evidence/` | 不纳入 |
 | 真实样本文件名、私网 IP、Tailscale 地址、挂载路径 | 已在文档中脱敏为占位符 |
 
 ## 已完成
 
-- 敏感信息审计与 18 个 Markdown 文档脱敏；原始文件备份于 `private/backups/docs-pre-sanitize-20261111.tar.gz`。
-- 加固 `.gitignore`，新增 SQLite/CSV/JSONL/日志/私有目录规则。
-- 新增 `tools/maintenance/scan_secrets.py`，CI 扫描高置信凭据与 Tailscale CGNAT 地址。
-- 新增 `.github/workflows/ci.yml`：Python 3.12/3.13，安装 ExifTool/FFmpeg 与 `requirements-visual.txt`，依赖校验、密钥扫描、静态检查、编译、全量测试。
+- 敏感信息审计与 18 个 Markdown 文档脱敏；原始文件备份于 `private/backups/docs-pre-sanitize-20261111.tar.gz`（已忽略）。
+- 默认拒绝 `.gitignore`，仅白名单放行源码、测试、文档、示例配置与 CI/hook。
+- `tools/maintenance/scan_secrets.py` 扫描高置信凭据与 Tailscale CGNAT 地址。
+- `.github/workflows/ci.yml`：Python 3.12/3.13，安装 ExifTool/FFmpeg 与 `requirements-visual.txt`，执行依赖校验、密钥扫描、ruff、compileall、全量测试。
+- `.githooks/pre-commit` 阻止 >1 MiB 文件、数据/媒体扩展名、敏感目录，并运行密钥扫描；`.githooks/pre-push` 阻止直接推送 `main`。
 - 新增 `tests/test_repository_policy.py`、`tests/test_maintenance_integrity.py`、`tests/test_maintenance_docker_contract.py`。
-- `tests/test_evidence_job.py` 在 DSH 模块未发布时显式 skip，避免干净 checkout 的 CI 失败。
+- 私有仓库、首次推送、PR #1 与 CI 已完成。
 
 ## 待确认 / 阻塞
 
-- **首次 GitHub 推送需要用户明确确认**：仓库名、可见性（应为 private）、组织/个人账号、分支保护要求。
-- DSH 需将 `nas_evidence_worker.py`、`run_evidence_job.py` 及依赖发布到受版本控制路径，否则该模块在 CI 中只能 skip。
-- Codex 需建立 `reports/agent-coordination/` 中央状态与任务板；OpenCode 不抢先修改。
+- GitHub Pro 升级或保持 Free + 本地防护：需用户/Codex 决策。
+- Codex `REVIEW_REQUEST` NAS-005：固定 lockfile 单实例/SIGKILL 恢复（P0）、PNG 损坏/拼接/截断解析（P1）。
+- `pyproject.toml` 的 `requires-python >=3.11` 与实际视觉依赖（numpy 2.5.4 / scipy 1.18.1 要求 >=3.12）不一致，建议 Codex 统一。
 
 ## 恢复命令
 
 ```sh
-cd /Users/xigua/Desktop/Program_Projects/NAS-Photo-Intelligence
+cd <PROJECT_ROOT>
+git fetch origin
 git status -sb
 .venv/bin/python -m unittest discover -s tests
 .venv/bin/ruff check src tests tools
 python tools/maintenance/scan_secrets.py
 ```
 
-相关文件：`docs/maintenance/TASKS.md`、`docs/maintenance/SECURITY_AUDIT.md`、`.github/workflows/ci.yml`。
+相关文件：`docs/maintenance/TASKS.md`、`docs/maintenance/SECURITY_AUDIT.md`、`.github/workflows/ci.yml`、`.githooks/`。
