@@ -31,7 +31,7 @@
 - 敏感信息审计与 18 个 Markdown 文档脱敏；原始文件备份于 `private/backups/docs-pre-sanitize-20261111.tar.gz`。
 - 加固 `.gitignore`，新增 SQLite/CSV/JSONL/日志/私有目录规则。
 - 新增 `tools/maintenance/scan_secrets.py`，CI 扫描高置信凭据与 Tailscale CGNAT 地址。
-- 新增 `.github/workflows/ci.yml`：Python 3.11/3.12/3.13，安装 ExifTool/FFmpeg，依赖校验、密钥扫描、静态检查、变更文件格式检查、编译、全量测试。
+- 新增 `.github/workflows/ci.yml`：Python 3.12/3.13，安装 ExifTool/FFmpeg 与 `requirements-visual.txt`，依赖校验、密钥扫描、静态检查、编译、全量测试。
 - 新增 `tests/test_repository_policy.py`、`tests/test_maintenance_integrity.py`、`tests/test_maintenance_docker_contract.py`。
 - `tests/test_evidence_job.py` 在 DSH 模块未发布时显式 skip，避免干净 checkout 的 CI 失败。
 
