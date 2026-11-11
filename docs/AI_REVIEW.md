@@ -2,7 +2,7 @@
 
 本仓库是 **私有仓库**。ChatGPT、Claude Chat 或其他外部审查者只有在获得该 GitHub 仓库的授权访问后才能读取。请勿要求上传生产照片、原始 SQLite、完整恢复索引或 NAS 凭据。
 
-本文件是外部 AI 审查的单一入口，不替代本地权威状态。运行时状态以 Codex 维护的 `reports/agent-coordination/PROJECT_STATUS.md` 为准；该目录不进入 Git。
+本文件是外部 AI 审查的单一入口，不替代本地权威状态。运行时权威状态以 Codex 维护的 `reports/agent-coordination/STATE.json` 与 `PROJECT_STATUS.md` 为准；该目录不进入 Git。
 
 最后核对：2026-11-11；基线 `main` 合并提交 `b5c8010`（PR #1）。最新提交以 GitHub `main` HEAD 为准。
 
