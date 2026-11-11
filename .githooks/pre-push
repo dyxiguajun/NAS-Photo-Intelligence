@@ -1,0 +1,14 @@
+#!/bin/sh
+# Compensating control while GitHub Free private repos lack server-side branch protection.
+# Block direct local pushes to main; use a pull request. Emergency bypass: git push --no-verify.
+set -eu
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$remote_ref" = "refs/heads/main" ]; then
+        echo "pre-push: direct pushes to main are disabled; open a pull request instead." >&2
+        echo "pre-push: emergency bypass requires explicit review and --no-verify." >&2
+        exit 1
+    fi
+done
+
+exit 0
