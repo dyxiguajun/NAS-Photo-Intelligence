@@ -1,6 +1,6 @@
 # OpenCode 维护状态
 
-更新时间：2026-11-11（America/Los_Angeles）
+更新时间：2026-11-11 18:10（America/Los_Angeles）
 角色：GitHub 版本管理、CI、独立代码审计、故障注入与数据完整性保障（三级）
 
 本文件是 OpenCode 的短上下文恢复入口。每次恢复会话先读本文件与 `TASKS.md`，不要重新加载全部历史报告。
@@ -8,12 +8,12 @@
 ## 当前事实（以工作区实测为准）
 
 - GitHub private 仓库：`dyxiguajun/NAS-Photo-Intelligence`，默认分支 `main`。
-- PR #1 已合并（merge commit `b5c8010`）；基线分支 `agent/opencode/git-baseline` @ `ce0b84a`。
-- CI 在 Python 3.12 / 3.13 均通过（PR #1：1m17s / 1m7s）。
-- 仓库跟踪 87 个文件（基线 85 + 本 PR 的审查入口与 `pre-push`）；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
-- 干净 worktree 全量测试：`112` 项通过，`53.408s`。
+- 当前 `main`：`1db99b6eaa7906bca1584191270d91ef3e43f7d6`（PR #3 merge）；PR #1 基线 `b5c8010`，PR #2 外部 AI 审查入口 `c6023f4`。
+- CI 在 Python 3.12 / 3.13 均通过（PR #3：1m47s / 1m45s）。
+- 仓库跟踪 88 个文件（基线 85 + AI 审查入口/`pre-push` + lockfile 测试）；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
+- 干净 worktree 全量测试：`117` 项通过，`76.316s`（含 5 个 lockfile 恢复用例）。
 - 外部 AI 审查入口：`docs/AI_REVIEW.md`，README 与 `docs/ARCHITECTURE.md` 已链接。
-- `reports/agent-coordination/` 已由 Codex 建立；中央权威文件为 `PROJECT_STATUS.md`、`TASK_BOARD.md`、`DECISIONS.md`、`AGENT_REGISTRY.md`（`STATE.json` 不存在）。
+- `reports/agent-coordination/STATE.json` 已存在（owner Codex，2026-11-11T22:05Z）；中央权威文件为 `STATE.json`、`PROJECT_STATUS.md`、`TASK_BOARD.md`、`DECISIONS.md`、`AGENT_REGISTRY.md`。
 - DSH evidence worker/intake 已发布到 `tools/nas-evidence/`。
 - 共享主工作区仍有 Codex/DSH 未提交改动；OpenCode 使用独立分支/worktree，不并发修改其文件。
 
@@ -52,12 +52,15 @@ GitHub Free 私有仓库不支持服务端分支保护或 rulesets；secret scan
 - `.github/workflows/ci.yml`：Python 3.12/3.13，安装 ExifTool/FFmpeg 与 `requirements-visual.txt`，执行依赖校验、密钥扫描、ruff、compileall、全量测试。
 - `.githooks/pre-commit` 阻止 >1 MiB 文件、数据/媒体扩展名、敏感目录，并运行密钥扫描；`.githooks/pre-push` 阻止直接推送 `main`。
 - 新增 `tests/test_repository_policy.py`、`tests/test_maintenance_integrity.py`、`tests/test_maintenance_docker_contract.py`。
-- 私有仓库、首次推送、PR #1 与 CI 已完成。
+- 新增 `tests/test_locked_batch.py`：5 个生成 fixture 用例，覆盖第二实例 exit 75、SIGKILL 后已提交产物保留、进程/子进程退出后解锁、待办重做。
+- 外部 AI 审查入口 `docs/AI_REVIEW.md` 已合并（PR #2），README、架构、状态、安全与任务文档已刷新。
+- 私有仓库、首次推送、PR #1/#2/#3 与 CI 已完成。
 
 ## 待确认 / 阻塞
 
 - GitHub Pro 升级或保持 Free + 本地防护：需用户/Codex 决策。
-- Codex `REVIEW_REQUEST` NAS-005：固定 lockfile 单实例/SIGKILL 恢复（P0）、PNG 损坏/拼接/截断解析（P1）。
+- NAS-005 剩余：断线、ENOSPC、重复启动、冻结清单对账（P0/P1）；PNG 损坏/拼接/截断解析（P1）。固定 lockfile P0 已交付，等待 Codex 验收。
+- DSH NAS-007 的 PNG 尺寸解析缺陷由 DSH 修正；OpenCode 只做独立生成 fixture 审计，不接管其生产恢复数据。
 - `pyproject.toml` 的 `requires-python >=3.11` 与实际视觉依赖（numpy 2.5.4 / scipy 1.18.1 要求 >=3.12）不一致，建议 Codex 统一。
 
 ## 恢复命令

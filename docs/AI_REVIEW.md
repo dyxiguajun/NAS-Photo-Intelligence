@@ -4,7 +4,7 @@
 
 本文件是外部 AI 审查的单一入口，不替代本地权威状态。运行时权威状态以 Codex 维护的 `reports/agent-coordination/STATE.json` 与 `PROJECT_STATUS.md` 为准；该目录不进入 Git。
 
-最后核对：2026-11-11；基线 `main` 合并提交 `b5c8010`（PR #1）。最新提交以 GitHub `main` HEAD 为准。
+最后核对：2026-11-11（America/Los_Angeles）；当前 `main` 合并提交 `1db99b6`（PR #3）。外部 AI 审查入口本身由 PR #2 `c6023f4` 引入；最新提交始终以 GitHub `main` HEAD 为准。
 
 ## 1. 项目用途
 
@@ -34,12 +34,14 @@ NAS-Photo-Intelligence 是一个**只读照片证据引擎**，用于整理中�
 ## 3. 当前可验证状态
 
 - 仓库：`dyxiguajun/NAS-Photo-Intelligence`，private，默认分支 `main`。
-- 基线：PR #1 已合并，CI 在 Python 3.12 / 3.13 均通过。
-- 跟踪文件：87 个（基线 85 + 本审查入口与 `pre-push` 防护）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
-- 回归测试：干净 worktree 中 `112` 项通过。
+- 当前 `main`：`1db99b6eaa7906bca1584191270d91ef3e43f7d6`（PR #3）；PR #2 已引入本审查入口，PR #3 增加 lockfile 恢复测试。
+- CI：Python 3.12 / 3.13 均通过（PR #3 run 43111838081：1m47s / 1m45s）。
+- 跟踪文件：88 个（基线 85 + AI 审查入口/`pre-push` + lockfile 测试）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
+- 回归测试：干净 worktree 中 `117` 项通过（含 5 个 lockfile 恢复用例）。
 - 静态检查：`ruff check src tests tools` 通过。
 - 密钥扫描：自研扫描器 clean；`gitleaks` 对历史扫描无泄漏。
-- 正在处理：Codex NAS-005 的固定 lockfile 单实例/SIGKILL 恢复测试（P0）；DSH 的 G2.2 高清参考索引；Codex 的整理/迁移生产前验证。
+- 已交付：`tests/test_locked_batch.py` 验证第二实例 exit 75、SIGKILL 后已提交产物保留、进程/子进程退出后解锁、待办重做。
+- 正在处理：NAS-005 的断线、ENOSPC、重复启动与冻结清单对账；PNG 损坏/拼接/截断解析（P1）；DSH 的 G2.2 高清参考索引；Codex 的整理/迁移生产前验证。
 
 ## 4. 关键源码路径
 
@@ -78,11 +80,12 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e .
 .venv/bin/python -m pip install -r requirements-visual.txt -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests
+.venv/bin/python -m unittest -v tests.test_locked_batch
 .venv/bin/python tools/maintenance/scan_secrets.py
 .venv/bin/ruff check src tests tools
 ```
 
-测试使用合成图像和临时目录，不读取真实 NAS。`config/example.json` 与 `config/manifest.example.json` 是脱敏示例；真实 `config/local.json` 和 `config/phase*.json` 不进入 Git。
+测试使用合成图像和临时目录，不读取真实 NAS。`tests/test_locked_batch.py` 使用生成 fixture 验证固定 lockfile 的单实例、SIGKILL 恢复、进程/子进程解锁和待办重做。`config/example.json` 与 `config/manifest.example.json` 是脱敏示例；真实 `config/local.json` 和 `config/phase*.json` 不进入 Git。
 
 ## 7. 有意不进入 GitHub 的内容
 

@@ -17,8 +17,9 @@
 | OC-010 | P2 | queued | 独立审计 `organize_transfer.py` / rclone 练习 | 不修改 Codex 文件；提交独立缺陷报告或 PR |
 | OC-011 | P0 | done | 创建 GitHub 私有仓库并首次推送 | 私有仓库已创建；PR #1 已合并；CI 绿 |
 | OC-012 | P2 | queued | 对 `src/nas_photo` 做数据丢失风险审计 | 按文件优先级输出问题清单；高优先级附最小复现 |
-| OC-013 | P1 | in_progress | 建立外部 AI 审查入口并同步 GitHub 可读状态 | `docs/AI_REVIEW.md`、README/架构链接、脱敏检查、PR 合并 |
+| OC-013 | P1 | done | 建立外部 AI 审查入口并同步 GitHub 可读状态 | `docs/AI_REVIEW.md`、README/架构链接、脱敏检查；PR #2 合并（`c6023f4`） |
 | OC-014 | P1 | blocked | GitHub Free 私有仓库分支保护/secret scanning 决策 | 需升级 GitHub Pro 或接受本地 pre-push + PR + CI 补偿措施 |
+| OC-015 | P0 | done | NAS-005 固定 lockfile 单实例/SIGKILL 恢复测试 | PR #3 合并（`1db99b6`）；5 个生成 fixture 用例；全量 117 项通过；CI 3.12/3.13 绿 |
 
 ## 工作循环
 
