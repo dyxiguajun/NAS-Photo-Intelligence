@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable index of sanitized, publicly readable source and documentation files for external AI review.",
+  "generated_date": "2026-11-11",
+  "generated_tz": "America/Los_Angeles",
+  "repository": "https://github.com/dyxiguajun/NAS-Photo-Intelligence",
+  "visibility": "public",
+  "default_branch": "main",
+  "snapshot_sha": "81827209198f1e48d5e39d6b7268bff2e8bec229",
+  "snapshot_note": "PR #7 merge; all raw links below are pinned to this reviewed snapshot. Replace the SHA with 'main' for the latest revision.",
+  "raw_base": "https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/",
+  "blob_base": "https://github.com/dyxiguajun/NAS-Photo-Intelligence/blob/81827209198f1e48d5e39d6b7268bff2e8bec229/",
+  "usage": "Concatenate raw_base + path to fetch plain text without authentication. Use blob_base + path for a rendered GitHub page.",
+  "anonymous_api_tree": "https://api.github.com/repos/dyxiguajun/NAS-Photo-Intelligence/git/trees/main?recursive=1",
+  "anonymous_api_rate_limit_per_hour": 60,
+  "groups": {
+    "documentation": [
+      {"path": "README.md", "note": "Purpose, CLI commands, runtime conditions, configuration and limits"},
+      {"path": "HANDOFF.md", "note": "Phase 3.1 handoff and preserved boundaries"},
+      {"path": "docs/AI_REVIEW.md", "note": "Project-maintained external AI review entry (authoritative among review docs)"},
+      {"path": "docs/ARCHITECTURE.md", "note": "Database schema, time rules, recovery protocol, L1/L2 normalization, cache boundaries"},
+      {"path": "docs/PHASE3_LIBRARY_REVIEW.md", "note": "Visual library selection, color/alpha/orientation rules"},
+      {"path": "docs/phases/README.md", "note": "Phase 0-3 requirements and report index"},
+      {"path": "docs/phases/PHASE3_REPORT.md", "note": "Phase 3 acceptance results on 28 real NAS files"},
+      {"path": "docs/datarestore-audit/README.md", "note": "Sanitized DataRestore1 recovery and dedup audit summary"},
+      {"path": "docs/datarestore-audit/03-defect-log.md", "note": "Seven silent data-defect postmortems"},
+      {"path": "docs/datarestore-audit/06-open-items.md", "note": "Open items, known risks and next priorities"},
+      {"path": "docs/datarestore-audit/07-c-tier-verification.md", "note": "C-tier multi-scale NCC verification"},
+      {"path": "docs/maintenance/SECURITY_AUDIT.md", "note": "Sanitization mapping, VCS boundary, residual risks"},
+      {"path": "docs/maintenance/STATE.md", "note": "Maintenance state, CI, GitHub protection status"},
+      {"path": "docs/maintenance/TASKS.md", "note": "Task queue and acceptance criteria"}
+    ],
+    "core_source": [
+      {"path": "nas_photo_cli.py", "note": "CLI launcher"},
+      {"path": "src/nas_photo/cli.py", "note": "scan / duplicates / similarity / organize command parser"},
+      {"path": "src/nas_photo/engine.py", "note": "Metadata scan, job queue, resume, timeout isolation"},
+      {"path": "src/nas_photo/metadata.py", "note": "Path safety, file identity, read-only ExifTool calls"},
+      {"path": "src/nas_photo/store.py", "note": "SQLite schema, WAL, transactions, migrations"},
+      {"path": "src/nas_photo/config.py", "note": "Source identity, mount root, limits and rules"},
+      {"path": "src/nas_photo/worker.py", "note": "Isolated worker process and resource limits"},
+      {"path": "src/nas_photo/process.py", "note": "Subprocess invocation wrapper"},
+      {"path": "src/nas_photo/time_rules.py", "note": "Time conflict and anomaly labels"},
+      {"path": "src/nas_photo/hashing.py", "note": "Chunked hashing"},
+      {"path": "src/nas_photo/duplicates.py", "note": "SHA-256 exact duplicates, read budget, cache, reports"},
+      {"path": "src/nas_photo/similarity.py", "note": "Visual jobs, L1/L2 evidence, compare and report"},
+      {"path": "src/nas_photo/imaging.py", "note": "Decode, normalization and fingerprints in isolated worker"},
+      {"path": "src/nas_photo/migrations.py", "note": "Schema 1 to 2 to 3 upgrade and backups"},
+      {"path": "src/nas_photo/visual_migration.py", "note": "Visual schema migration"},
+      {"path": "src/nas_photo/organize.py", "note": "Independent organize workspace command entry"},
+      {"path": "src/nas_photo/organize_index.py", "note": "Versioned inventory and evidence"},
+      {"path": "src/nas_photo/organize_build.py", "note": "Read-only organize precheck and isolated rehearsal"},
+      {"path": "src/nas_photo/organize_decisions.py", "note": "Version suggestion decisions"},
+      {"path": "src/nas_photo/organize_evidence.py", "note": "Evidence collection for organize"},
+      {"path": "src/nas_photo/organize_exercise.py", "note": "Organize rehearsal driver"},
+      {"path": "src/nas_photo/organize_reconcile.py", "note": "Reconciliation of organize inventory"},
+      {"path": "src/nas_photo/organize_transfer.py", "note": "rclone local transfer rehearsal, never touches production"}
+    ],
+    "tools_and_config": [
+      {"path": "tools/czkawka_docker_batch.py", "note": "Docker Czkawka read-only scan batches and checkpoints"},
+      {"path": "tools/import_czkawka_batch.py", "note": "Import Czkawka batch results"},
+      {"path": "tools/agent_sync.py", "note": "Three-agent local message exchange, atomic writes and dedup"},
+      {"path": "tools/locked_batch.py", "note": "Fixed lockfile single-instance batch"},
+      {"path": "tools/maintenance/scan_secrets.py", "note": "Credential and private-network identifier scanner"},
+      {"path": "tools/install_exiftool.py", "note": "Pinned ExifTool installer and verification"},
+      {"path": "tools/nas-evidence/Dockerfile", "note": "Evidence worker container definition"},
+      {"path": "tools/nas-evidence/nas_evidence_worker.py", "note": "Resumable NAS-side SHA-256 / ExifTool evidence worker"},
+      {"path": "tools/nas-evidence/nas_worker.py", "note": "NAS worker entry"},
+      {"path": "tools/nas-evidence/evidence_intake.py", "note": "Evidence intake"},
+      {"path": "tools/nas-evidence/run-container.sh", "note": "Container launch parameters"},
+      {"path": "tools/nas-evidence/supervise.py", "note": "Evidence worker supervision"},
+      {"path": "tools/phase3_local_validation.py", "note": "Local synthetic validation, no NAS access"},
+      {"path": "tools/phase3_1_diagnostics.py", "note": "Phase 3.1 RSS diagnostics"},
+      {"path": ".github/workflows/ci.yml", "note": "CI: Python 3.12/3.13, secret scan, ruff, compileall, unittest"},
+      {"path": ".githooks/pre-commit", "note": "Size/path/extension guard and secret scan"},
+      {"path": ".githooks/pre-push", "note": "Blocks direct push to main"},
+      {"path": ".gitignore", "note": "Default-deny allowlist defining what never enters Git"},
+      {"path": "pyproject.toml", "note": "Package metadata and Python version declaration"},
+      {"path": "requirements-visual.txt", "note": "Pinned optional visual dependencies"},
+      {"path": "requirements-dev.txt", "note": "Pinned dev dependencies"},
+      {"path": "ruff.toml", "note": "Static check configuration"},
+      {"path": "config/example.json", "note": "Sanitized configuration template"},
+      {"path": "config/manifest.example.json", "note": "Sanitized manifest example"}
+    ],
+    "tests": [
+      {"path": "tests/test_engine.py", "note": "Scan, resume, timeout and source mapping"},
+      {"path": "tests/test_duplicates.py", "note": "SHA-256 groups, budget and cache"},
+      {"path": "tests/test_similarity.py", "note": "L1/L2, worker RSS, migrations and thresholds"},
+      {"path": "tests/test_organize.py", "note": "Organize workspace and rehearsal"},
+      {"path": "tests/test_locked_batch.py", "note": "Single instance, SIGKILL recovery, unlock and redo"},
+      {"path": "tests/test_repository_policy.py", "note": "Forbidden paths and file size policy"},
+      {"path": "tests/test_maintenance_integrity.py", "note": "Maintenance integrity checks"},
+      {"path": "tests/test_maintenance_docker_contract.py", "note": "Docker isolation contract"},
+      {"path": "tests/test_evidence_job.py", "note": "Evidence worker job"},
+      {"path": "tests/test_agent_sync.py", "note": "Agent message sync"},
+      {"path": "tests/worker_probe.py", "note": "Real process and memory fixture"}
+    ]
+  },
+  "portal_files": {
+    "note": "These files are introduced by the portal branch itself, so they do NOT exist at snapshot_sha. They are served as relative paths from the GitHub Pages site root (docs/) and are not valid raw_base links.",
+    "items": [
+      {"site_path": "index.html", "source_path": "docs/index.html", "note": "Rendered static portal"},
+      {"site_path": "AI_PORTAL.md", "source_path": "docs/AI_PORTAL.md", "note": "Markdown mirror served as plain text"},
+      {"site_path": "ai-portal/manifest.json", "source_path": "docs/ai-portal/manifest.json", "note": "This machine-readable index"},
+      {"site_path": "ai-portal/ACCESS_REPORT.md", "source_path": "docs/ai-portal/ACCESS_REPORT.md", "note": "Anonymous HTTP access test results"}
+    ]
+  },
+  "architecture_summary": {
+    "principle": "Read-only photo evidence engine; no delete, move, rename or EXIF write-back",
+    "layers": [
+      "L0: full SHA-256 byte-level duplicates",
+      "L1: normalized full RGBA8 pixel equality under a pinned decoder/algorithm version",
+      "L2: pHash/dHash visual candidates only, never a deletion authorization"
+    ],
+    "scope": "Every scan/hash/visual job requires an explicit manifest; no automatic full-library scan; read budgets accumulate across resume",
+    "persistence": "Local SQLite WAL, per-file transactions, isolated worker process groups, resumable jobs",
+    "authoritative_reference": "docs/ARCHITECTURE.md"
+  },
+  "testing": {
+    "ci_python_versions": ["3.12", "3.13"],
+    "steps": ["pip check", "scan_secrets.py", "ruff check src tests tools", "compileall", "unittest discover -s tests -v"],
+    "fixtures": "Synthetic images and temporary directories only; tests never read the real NAS",
+    "known_inconsistency": "pyproject.toml declares Python >=3.11 while numpy/scipy visual pins require >=3.12"
+  },
+  "anonymous_access": {
+    "github_web": 200,
+    "raw_githubusercontent": 200,
+    "github_api": 200,
+    "jsdelivr_mirror": 200,
+    "nonexistent_path_control": 404,
+    "excluded_local_files": 404,
+    "note": "404 means not published, not 401/403 permission denial. See docs/ai-portal/ACCESS_REPORT.md for full evidence."
+  },
+  "known_limitations": [
+    "github.com/robots.txt has an AI user-agent group (GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, Claude-User, PerplexityBot, Perplexity-User) containing Disallow: /*/tree/, /*/raw/ and /*/blame/. Web-fetch tools that honor robots.txt may refuse those github.com paths even though the server returns HTTP 200.",
+    "Changing repository visibility, permissions or branch protection cannot fix a client-side robots policy or a specific web tool's own fetch restrictions.",
+    "Anonymous GitHub API is limited to 60 requests/hour; heavy use may yield HTTP 403 as rate limiting, not an authorization failure.",
+    "Runtime authoritative state (reports/agent-coordination/STATE.json, PROJECT_STATUS.md, TASK_BOARD.md) is intentionally not in Git and cannot be read through any anonymous link."
+  ],
+  "not_published": [
+    "data/ (production SQLite, backups, WAL, locks)",
+    "reports/ (agent coordination, DSH research, ~3.1 GB audit working data, large logs)",
+    "config/local.json and config/phase*.json (real NAS mount roots and sample manifests)",
+    "docs/phases/evidence/",
+    "private/, logs/, cache/, .venv/, tools/exiftool/",
+    "*.sqlite3, *.db, *.csv, *.jsonl, *.log and all media extensions",
+    "Production and recovered photos/videos, NAS credentials, SSH/Tailscale keys, private IPs and real photo filenames"
+  ]
+}
