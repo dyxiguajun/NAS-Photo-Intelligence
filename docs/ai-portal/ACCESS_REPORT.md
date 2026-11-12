@@ -114,3 +114,28 @@ Disallow: /*/archive/
 - `SECURITY_AUDIT.md` 已记录 DataRestore1 公开文档中仍有 1 个示例容器名与 3 个对象 SHA-256 前缀待 DSH 复核；本入口不引用这些标识符。
 - 文档中的 `main` SHA 是「核对时」快照，仓库仍在活跃更新；最新 HEAD 请以 GitHub API 为准。
 - 本入口的链接固定到 `8182720...`，该快照包含 PR #7 的文档修正。
+
+## 7. GitHub Pages 启用后的复测
+
+第 1 节第 15 项记录的是 Pages **启用前**的 404（API `GET /repos/.../pages` 同样 404，原因明确为站点未创建）。随后通过 API 启用 Pages：
+
+```
+POST /repos/dyxiguajun/NAS-Photo-Intelligence/pages
+{"build_type":"legacy","source":{"branch":"agent/public-ai-review-portal","path":"/docs"}}
+```
+
+首次构建记录：`GET /pages/builds/latest` → `status: built`，`commit: a545204c705bcfdfc6481887a00fa142edf1b8ec`，`error: null`（构建耗时约 21 秒）。后续分支推送会触发新的构建，`latest` 中的 commit 会随之变化。
+
+匿名复测（无凭证）：
+
+| URL | HTTP | Content-Type |
+|---|---:|---|
+| `https://dyxiguajun.github.io/NAS-Photo-Intelligence/` | 200 | text/html |
+| `.../AI_PORTAL.md` | 200 | text/markdown |
+| `.../ai-portal/manifest.json` | 200 | application/json |
+| `.../ai-portal/ACCESS_REPORT.md` | 200 | text/markdown |
+| `.../ARCHITECTURE.md` | 200 | text/markdown |
+
+`.nojekyll` 生效：`.md` 以 `text/markdown` 原样提供，便于纯文本抓取。`dyxiguajun.github.io/robots.txt` 返回 404，按 robots 约定该源无禁止规则。
+
+**配置说明**：Pages 源指向本 PR 的独立分支，以便合并前验证；`main` 的文件未被修改。PR 合并后需由 Codex / OpenCode 决定是否把源改为 `main` + `/docs`，否则删除该分支会导致站点失效。这是仓库级站点配置，不是权限或可见性变更。

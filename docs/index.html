@@ -56,6 +56,7 @@ footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color
 <table>
 <tr><th>项目</th><th>值</th></tr>
 <tr><td>公开仓库</td><td><a href="https://github.com/dyxiguajun/NAS-Photo-Intelligence">https://github.com/dyxiguajun/NAS-Photo-Intelligence</a></td></tr>
+<tr><td>GitHub Pages 静态入口</td><td><a href="https://dyxiguajun.github.io/NAS-Photo-Intelligence/">https://dyxiguajun.github.io/NAS-Photo-Intelligence/</a>（匿名实测 HTTP 200）</td></tr>
 <tr><td>可见性</td><td>Public（匿名可读，无需登录）</td></tr>
 <tr><td>默认分支</td><td><code>main</code></td></tr>
 <tr><td>本页链接固定的审查快照 SHA</td><td class="mono">81827209198f1e48d5e39d6b7268bff2e8bec229</td></tr>
@@ -181,7 +182,7 @@ python tools/maintenance/scan_secrets.py</code></pre>
 <p class="meta">注意：<code>pyproject.toml</code> 声明 Python ≥3.11，但视觉依赖 numpy/scipy 要求 ≥3.12，CI 因此只跑 3.12/3.13。此差异已记录在仓库文档中，尚未统一。</p>
 
 <h2>6. 匿名访问实测与已知限制</h2>
-<p>2026-11-11（America/Los_Angeles）使用不带任何凭证的请求实测：github.com 普通文件页、<code>raw.githubusercontent.com</code>、GitHub API、jsDelivr 镜像均为 <span class="ok">HTTP 200</span>；不存在的路径为 <span class="ok">HTTP 404</span>（表示未发布，不是 401/403 权限拒绝）。完整逐条记录见 <a href="ai-portal/ACCESS_REPORT.md">ACCESS_REPORT.md</a>。</p>
+<p>2026-11-11（America/Los_Angeles）使用不带任何凭证的请求实测：github.com 普通文件页、<code>raw.githubusercontent.com</code>、GitHub API、jsDelivr 镜像与 <a href="https://dyxiguajun.github.io/NAS-Photo-Intelligence/">本 Pages 站点</a>均为 <span class="ok">HTTP 200</span>；不存在的路径为 <span class="ok">HTTP 404</span>（表示未发布，不是 401/403 权限拒绝）。完整逐条记录见 <a href="ai-portal/ACCESS_REPORT.md">ACCESS_REPORT.md</a>。</p>
 <div class="card">
 <p><span class="warn">重要限制（不是仓库权限问题）</span></p>
 <p>实测中 <code>curl</code>、浏览器、<code>ChatGPT-User</code>、<code>GPTBot</code>、<code>OAI-SearchBot</code>、<code>Claude-User</code>、<code>ClaudeBot</code> 等 UA 对 github.com 的服务端响应全部为 <strong>HTTP 200</strong>，GitHub 并未按 UA 在 HTTP 层拦截。但 <a href="https://github.com/robots.txt">github.com/robots.txt</a> 针对这些 AI UA 明确包含 <code>Disallow: /*/tree/</code>、<code>Disallow: /*/raw/</code>、<code>Disallow: /*/blame/</code> 等规则。遵守 robots.txt 的 ChatGPT / Claude 网页抓取工具可能因此<strong>拒绝打开 github.com 的目录页与 /raw/ 页面</strong>，即便链接本身返回 200。</p>
