@@ -2,7 +2,7 @@
 
 命令行照片证据引擎：只读元数据索引、异常标签、SHA-256 完全重复检测、规范化像素相同检测及视觉相似候选。SQLite、任务队列和输出均在 Mac 本地；不执行删除、照片移动或元数据修复。
 
-> **外部 AI 审查入口 / External review entry:** [docs/AI_REVIEW.md](docs/AI_REVIEW.md)。本仓库为私有仓库，访问需要已授权的 GitHub 凭据。生产媒体、原始 SQLite、完整恢复索引、凭据和未脱敏日志不进入 Git。
+> **外部 AI 审查入口 / External review entry:** [docs/AI_REVIEW.md](docs/AI_REVIEW.md)。本仓库当前为公开仓库，可直接读取；如 GitHub 页面受限，入口文档内提供 raw / jsDelivr 纯文本地址。生产媒体、原始 SQLite、完整恢复索引、凭据和未脱敏日志不进入 Git。
 
 Phase 3 已完成 28 个 NAS 文件的有限验证：26 张图片生成指纹，2 个文件跳过，发现 1 对未确认视觉候选。最新结果见 `docs/phases/PHASE3_REPORT.md`，历史 Phase 1/2 报告保留，恢复入口为 `HANDOFF.md`。原始阶段要求、报告与 Phase 0 证据统一见 [阶段资料索引](docs/phases/README.md)。
 

@@ -2,7 +2,7 @@
 
 本目录是 `NAS-Photo-Intelligence` 项目的**数据恢复审计结论摘要**。
 完整工作底稿（约 3.1 GB 机器数据、逐路径清单、恢复出的媒体对象）
-保留在隔离研究区，**不进入版本库**，原因见 [05-methodology.md](05-methodology.md)。
+保留在隔离研究区，**不进入版本库**，原因见 [05-methodology-and-wording.md](05-methodology-and-wording.md)。
 
 > **核心定位**：本项目不是"尽可能多地自动删除"，而是
 > **把检索能力发展为有实际证据支持的版本判定系统**。
