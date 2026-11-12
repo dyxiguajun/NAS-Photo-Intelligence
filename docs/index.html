@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<meta name="description" content="NAS-Photo-Intelligence 外部 AI 审查入口：公开源码目录、纯文本直链、架构与测试说明。">
+<title>NAS-Photo-Intelligence — 外部 AI 审查入口</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1f2328;--muted:#59636e;--border:#d8dee4;--panel:#f6f8fa;--link:#0969da;--code:#eaeef2;--accent:#1a7f5a;--warn:#9a6700}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--border:#30363d;--panel:#161b22;--link:#58a6ff;--code:#21262d;--accent:#3fb950;--warn:#d29922}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",Helvetica,Arial,sans-serif}
+main{max-width:980px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:26px;font-weight:600;margin:0 0 6px}
+h2{font-size:19px;font-weight:600;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:16px;font-weight:600;margin:22px 0 8px}
+p,ul,ol{margin:10px 0}
+a{color:var(--link);text-decoration:none;overflow-wrap:anywhere}
+a:hover{text-decoration:underline}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+code{background:var(--code);padding:2px 5px;border-radius:4px}
+pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.6}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0}
+th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel);font-weight:600}
+td.path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.meta{color:var(--muted);font-size:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:16px 0}
+.ok{color:var(--accent);font-weight:600}
+.warn{color:var(--warn);font-weight:600}
+ul.tight li{margin:4px 0}
+.badge{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);margin-right:6px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+
+<h1>NAS-Photo-Intelligence — 外部 AI 审查入口</h1>
+<p class="meta">公开只读快照 · 面向 ChatGPT / Claude / 普通网页读取工具 · 无需 GitHub 登录</p>
+<p>
+<span class="badge">public repository</span>
+<span class="badge">branch: main</span>
+<span class="badge">no credentials required</span>
+</p>
+
+<div class="card">
+<strong>这个页面是什么</strong>
+<p>本页是静态的「文件目录 + 纯文本直链」索引，帮助外部 AI 在不登录 GitHub 的情况下定位本项目的关键源码、架构说明与测试。页面本身不包含任何照片、数据库、索引或凭据；所有链接只指向已进入版本控制且经过脱敏检查的文件。</p>
+<p><strong>本页不替代仓库内的权威文档</strong>：<a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/AI_REVIEW.md">docs/AI_REVIEW.md</a> 是项目维护的外部审查入口，<a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/README.md">README.md</a> 说明运行方式。运行时权威状态保存在本地 <code>reports/agent-coordination/STATE.json</code>，该目录按设计不进入 Git。</p>
+</div>
+
+<h2>1. 快照与仓库信息</h2>
+<table>
+<tr><th>项目</th><th>值</th></tr>
+<tr><td>公开仓库</td><td><a href="https://github.com/dyxiguajun/NAS-Photo-Intelligence">https://github.com/dyxiguajun/NAS-Photo-Intelligence</a></td></tr>
+<tr><td>GitHub Pages 静态入口</td><td><a href="https://dyxiguajun.github.io/NAS-Photo-Intelligence/">https://dyxiguajun.github.io/NAS-Photo-Intelligence/</a>（匿名实测 HTTP 200）</td></tr>
+<tr><td>可见性</td><td>Public（匿名可读，无需登录）</td></tr>
+<tr><td>默认分支</td><td><code>main</code></td></tr>
+<tr><td>本页链接固定的审查快照 SHA</td><td class="mono">81827209198f1e48d5e39d6b7268bff2e8bec229</td></tr>
+<tr><td>该快照对应的合并</td><td>PR #7 <em>docs: document public access and raw text entry points</em>（2026-11-12T02:45:00Z）</td></tr>
+<tr><td>本页所在分支</td><td><code>agent/public-ai-review-portal</code>（通过 PR 提交，未直接改 main）</td></tr>
+</table>
+<p class="meta">把下方链接中的 40 位 SHA 替换为 <code>main</code> 即可读取最新版本；固定 SHA 用于保证审查结论可复现。仓库仍在活跃更新，最新 HEAD 以 <a href="https://api.github.com/repos/dyxiguajun/NAS-Photo-Intelligence/commits/main">GitHub API</a> 为准。</p>
+
+<h2>2. 纯文本直链（推荐给 AI 抓取工具）</h2>
+<p>使用 <code>raw.githubusercontent.com</code> 的纯文本地址，不依赖 JavaScript、不需要登录：</p>
+<pre><code>RAW = https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/
+
+$RAW/README.md
+$RAW/HANDOFF.md
+$RAW/docs/AI_REVIEW.md
+$RAW/docs/ARCHITECTURE.md
+$RAW/docs/maintenance/STATE.md
+$RAW/docs/maintenance/SECURITY_AUDIT.md
+$RAW/docs/maintenance/TASKS.md
+$RAW/docs/datarestore-audit/README.md
+$RAW/nas_photo_cli.py
+$RAW/src/nas_photo/cli.py
+$RAW/src/nas_photo/similarity.py
+$RAW/.github/workflows/ci.yml
+</code></pre>
+<p>以上所有路径均存在于该固定 SHA。完整可机读索引：<a href="ai-portal/manifest.json">manifest.json</a>（列出分组、路径、固定 SHA 直链与用途）。Markdown 镜像：<a href="AI_PORTAL.md">AI_PORTAL.md</a>。访问实测明细：<a href="ai-portal/ACCESS_REPORT.md">ACCESS_REPORT.md</a>。这三个入口文件由本分支引入，因此通过本站点的相对路径访问，不固定到旧 SHA。</p>
+
+<h2>3. 关键文件目录</h2>
+<p class="meta">下表链接均固定到上述 SHA。描述为阅读导引，具体实现以源码为准。</p>
+
+<h3>3.1 文档与交接</h3>
+<table>
+<tr><th>路径</th><th>内容</th></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/README.md">README.md</a></td><td>项目用途、CLI 命令、运行条件、配置与限制</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/HANDOFF.md">HANDOFF.md</a></td><td>Phase 3.1 交接与保留边界</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/AI_REVIEW.md">docs/AI_REVIEW.md</a></td><td>外部 AI 审查单一入口（项目维护）</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a></td><td>数据库结构、时间规则、恢复协议、L1/L2 规范化与缓存边界</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/PHASE3_LIBRARY_REVIEW.md">docs/PHASE3_LIBRARY_REVIEW.md</a></td><td>视觉库选型、颜色/透明/方向规则</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/phases/README.md">docs/phases/README.md</a></td><td>Phase 0–3 要求与报告索引</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/datarestore-audit/README.md">docs/datarestore-audit/README.md</a></td><td>DataRestore1 恢复与去重审计摘要（脱敏）</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/datarestore-audit/03-defect-log.md">docs/datarestore-audit/03-defect-log.md</a></td><td>7 个静默数据缺陷复盘</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/maintenance/SECURITY_AUDIT.md">docs/maintenance/SECURITY_AUDIT.md</a></td><td>脱敏映射、版本控制边界、残余风险</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/maintenance/STATE.md">docs/maintenance/STATE.md</a></td><td>维护状态、CI、GitHub 保护状态</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/maintenance/TASKS.md">docs/maintenance/TASKS.md</a></td><td>任务队列与验收条件</td></tr>
+</table>
+
+<h3>3.2 核心源码 <span class="mono">src/nas_photo/</span></h3>
+<table>
+<tr><th>路径</th><th>作用</th></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/nas_photo_cli.py">nas_photo_cli.py</a></td><td>CLI 启动入口</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/cli.py">src/nas_photo/cli.py</a></td><td>scan / duplicates / similarity / organize 命令解析</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/engine.py">src/nas_photo/engine.py</a></td><td>元数据扫描、任务队列、恢复与超时隔离</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/metadata.py">src/nas_photo/metadata.py</a></td><td>路径安全、文件身份、ExifTool 只读调用</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/store.py">src/nas_photo/store.py</a></td><td>SQLite schema、WAL、事务与迁移</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/duplicates.py">src/nas_photo/duplicates.py</a></td><td>SHA-256 精确重复、读取预算、缓存与报告</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/hashing.py">src/nas_photo/hashing.py</a></td><td>分块哈希实现</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/similarity.py">src/nas_photo/similarity.py</a></td><td>视觉任务、L1/L2 证据、比较与报告</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/imaging.py">src/nas_photo/imaging.py</a></td><td>隔离 worker 中的解码、规范化与指纹</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/worker.py">src/nas_photo/worker.py</a></td><td>独立 worker 进程与资源约束</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/config.py">src/nas_photo/config.py</a></td><td>来源身份、挂载根、限额与规则加载</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/time_rules.py">src/nas_photo/time_rules.py</a></td><td>时间冲突与异常标签规则</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/migrations.py">src/nas_photo/migrations.py</a></td><td>schema 1→2→3 兼容升级与备份</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/organize.py">src/nas_photo/organize.py</a></td><td>独立整理工作区命令入口</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/organize_index.py">src/nas_photo/organize_index.py</a></td><td>版本化库存与证据</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/organize_build.py">src/nas_photo/organize_build.py</a></td><td>只读整理预检与隔离演练</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/organize_transfer.py">src/nas_photo/organize_transfer.py</a></td><td>rclone 本地传输行为演练（不接触生产）</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/src/nas_photo/process.py">src/nas_photo/process.py</a></td><td>子进程调用封装</td></tr>
+</table>
+
+<h3>3.3 工具、配置与 CI</h3>
+<table>
+<tr><th>路径</th><th>作用</th></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/czkawka_docker_batch.py">tools/czkawka_docker_batch.py</a></td><td>Czkawka Docker 只读扫描批次与检查点</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/agent_sync.py">tools/agent_sync.py</a></td><td>三 Agent 本地消息交换（原子写、去重、回执）</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/locked_batch.py">tools/locked_batch.py</a></td><td>固定 lockfile 单实例批次</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/maintenance/scan_secrets.py">tools/maintenance/scan_secrets.py</a></td><td>凭据与私网标识扫描</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/nas-evidence/nas_evidence_worker.py">tools/nas-evidence/nas_evidence_worker.py</a></td><td>NAS 侧可恢复 SHA-256 / ExifTool 证据 worker</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/nas-evidence/Dockerfile">tools/nas-evidence/Dockerfile</a></td><td>证据 worker 容器定义</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tools/install_exiftool.py">tools/install_exiftool.py</a></td><td>固定版本 ExifTool 获取与核验</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/.github/workflows/ci.yml">.github/workflows/ci.yml</a></td><td>CI：Python 3.12/3.13、密钥扫描、ruff、compileall、全量测试</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/.githooks/pre-commit">.githooks/pre-commit</a></td><td>体积/路径/扩展名拦截与密钥扫描</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/.githooks/pre-push">.githooks/pre-push</a></td><td>阻止直接推送 main</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/.gitignore">.gitignore</a></td><td>默认拒绝白名单（定义哪些数据不进入 Git）</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/config/example.json">config/example.json</a></td><td>脱敏配置模板</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/requirements-visual.txt">requirements-visual.txt</a></td><td>可选视觉依赖固定版本</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/pyproject.toml">pyproject.toml</a></td><td>包元数据与 Python 版本声明</td></tr>
+</table>
+
+<h3>3.4 测试</h3>
+<table>
+<tr><th>路径</th><th>作用</th></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_engine.py">tests/test_engine.py</a></td><td>扫描、恢复、超时与来源映射</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_duplicates.py">tests/test_duplicates.py</a></td><td>SHA-256 重复组、预算与缓存</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_similarity.py">tests/test_similarity.py</a></td><td>L1/L2、worker RSS、迁移与阈值</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_organize.py">tests/test_organize.py</a></td><td>整理工作区与演练</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_locked_batch.py">tests/test_locked_batch.py</a></td><td>单实例、SIGKILL 恢复、解锁与待办重做</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_repository_policy.py">tests/test_repository_policy.py</a></td><td>受禁路径与文件体积策略</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_maintenance_docker_contract.py">tests/test_maintenance_docker_contract.py</a></td><td>Docker 隔离契约</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/test_evidence_job.py">tests/test_evidence_job.py</a></td><td>证据 worker 任务</td></tr>
+<tr><td class="path"><a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/tests/worker_probe.py">tests/worker_probe.py</a></td><td>真实进程与内存 fixture</td></tr>
+</table>
+<p class="meta">其余测试（<code>test_agent_sync.py</code>、<code>test_maintenance_integrity.py</code> 等）与完整文件树可通过 <a href="https://api.github.com/repos/dyxiguajun/NAS-Photo-Intelligence/git/trees/main?recursive=1">GitHub API 文件树</a> 匿名获取。</p>
+
+<h2>4. 架构说明（阅读导引）</h2>
+<ul class="tight">
+<li><strong>只读优先</strong>：NAS 只提供原始文件；程序只写本地 SQLite、日志和报告。不删除、不移动、不改名、不写回 EXIF。</li>
+<li><strong>三层证据</strong>：L0 = 完整 SHA-256 字节重复；L1 = 指定解码器/规范化版本下完整 RGBA8 像素相同；L2 = pHash/dHash 视觉候选，<em>仅作关联建议，不能作为删除依据</em>。</li>
+<li><strong>显式范围</strong>：scan / hash / 视觉任务都必须提供 manifest，不自动全库扫描；读取字节预算跨 resume 累计，不因重启重置。</li>
+<li><strong>可恢复队列</strong>：SQLite WAL + 每文件事务 + 独立 worker 进程组；<code>running</code> 条目在 resume 时重置，已提交结果不重做。</li>
+<li><strong>隔离</strong>：单图独立进程解码，像素门限、RSS 采样与超时保护；Czkawka 只读扫描使用固定摘要 Docker 镜像。</li>
+<li><strong>身份模型</strong>：<code>source_id + relative_path</code> 为稳定逻辑身份；<code>mount_root</code> 只是可变挂载入口。</li>
+<li>完整设计见 <a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/81827209198f1e48d5e39d6b7268bff2e8bec229/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a>。</li>
+</ul>
+
+<h2>5. 测试说明</h2>
+<p>CI 在 <strong>Python 3.12 / 3.13</strong> 矩阵运行：安装系统 ExifTool/FFmpeg 与视觉依赖后，依次执行 <code>pip check</code>、<code>scan_secrets.py</code>、<code>ruff check src tests tools</code>、<code>compileall</code>、<code>unittest discover -s tests -v</code>。测试使用合成图像与临时目录，<strong>不读取真实 NAS</strong>。</p>
+<pre><code>python3 -m venv .venv
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -r requirements-visual.txt -r requirements-dev.txt
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/ruff check src tests tools
+python tools/maintenance/scan_secrets.py</code></pre>
+<p class="meta">注意：<code>pyproject.toml</code> 声明 Python ≥3.11，但视觉依赖 numpy/scipy 要求 ≥3.12，CI 因此只跑 3.12/3.13。此差异已记录在仓库文档中，尚未统一。</p>
+
+<h2>6. 匿名访问实测与已知限制</h2>
+<p>2026-11-11（America/Los_Angeles）使用不带任何凭证的请求实测：github.com 普通文件页、<code>raw.githubusercontent.com</code>、GitHub API、jsDelivr 镜像与 <a href="https://dyxiguajun.github.io/NAS-Photo-Intelligence/">本 Pages 站点</a>均为 <span class="ok">HTTP 200</span>；不存在的路径为 <span class="ok">HTTP 404</span>（表示未发布，不是 401/403 权限拒绝）。完整逐条记录见 <a href="ai-portal/ACCESS_REPORT.md">ACCESS_REPORT.md</a>。</p>
+<div class="card">
+<p><span class="warn">重要限制（不是仓库权限问题）</span></p>
+<p>实测中 <code>curl</code>、浏览器、<code>ChatGPT-User</code>、<code>GPTBot</code>、<code>OAI-SearchBot</code>、<code>Claude-User</code>、<code>ClaudeBot</code> 等 UA 对 github.com 的服务端响应全部为 <strong>HTTP 200</strong>，GitHub 并未按 UA 在 HTTP 层拦截。但 <a href="https://github.com/robots.txt">github.com/robots.txt</a> 针对这些 AI UA 明确包含 <code>Disallow: /*/tree/</code>、<code>Disallow: /*/raw/</code>、<code>Disallow: /*/blame/</code> 等规则。遵守 robots.txt 的 ChatGPT / Claude 网页抓取工具可能因此<strong>拒绝打开 github.com 的目录页与 /raw/ 页面</strong>，即便链接本身返回 200。</p>
+<p>规避方式是本页统一使用 <code>raw.githubusercontent.com</code> 纯文本直链（该域无 robots.txt）或本 Pages 站点。<strong>更改 GitHub 仓库权限、可见性或分支保护都不能解决抓取端的 robots 策略</strong>；若某个特定网页工具仍被阻止，应记录为工具侧限制，而不是声称权限调整可以修复。</p>
+<p>另：匿名 GitHub API 限额为 <strong>60 次/小时</strong>，大量读取可能返回 403（限流），同样不是权限问题。</p>
+</div>
+
+<h2>7. 发布边界</h2>
+<p>本站点只发布<strong>已进入版本控制且经脱敏检查</strong>的源码、测试、文档与示例配置。以下内容按 <code>.gitignore</code> 默认拒绝规则<strong>不进入 Git，因此也无法通过任何匿名链接读取</strong>：</p>
+<ul class="tight">
+<li>生产/恢复照片与视频、原始与恢复媒体对象</li>
+<li><code>data/</code> 生产 SQLite 及其备份、WAL、写入锁</li>
+<li><code>reports/</code>：三 Agent 协调消息（<code>STATE.json</code>、<code>PROJECT_STATUS.md</code>、<code>TASK_BOARD.md</code> 等）、DSH 研究、约 3.1 GB 审计底稿与大型日志</li>
+<li><code>config/local.json</code>、<code>config/phase*.json</code>：真实 NAS 挂载根与样本清单</li>
+<li><code>docs/phases/evidence/</code>、<code>private/</code>、<code>logs/</code>、<code>cache/</code>、<code>.venv/</code>、<code>tools/exiftool/</code></li>
+<li><code>*.sqlite3</code>、<code>*.db</code>、<code>*.csv</code>、<code>*.jsonl</code>、<code>*.log</code> 及媒体扩展名</li>
+<li>SSH / Tailscale 密钥、NAS 凭据、私网地址与真实照片文件名（文档中已替换为占位符）</li>
+</ul>
+<p>对以上路径的匿名请求实测均返回 <strong>404</strong>，说明它们未发布，而非因权限被拒。完整清单见 <a href="ai-portal/ACCESS_REPORT.md">ACCESS_REPORT.md</a>。</p>
+
+<footer>
+静态入口由独立分支 <code>agent/public-ai-review-portal</code> 通过 PR 提交，供 Codex / OpenCode 审核；不修改 main、不改变仓库可见性、不重写历史、不调整账号权限。<br>
+本页为文件索引，不构成对项目状态的权威声明；运行时状态以本地 <code>reports/agent-coordination/STATE.json</code> 为准。<br>
+仓库内维护的审查入口：<a href="https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/AI_REVIEW.md">docs/AI_REVIEW.md</a> · 机器可读索引：<a href="ai-portal/manifest.json">manifest.json</a>
+</footer>
+
+</main>
+</body>
+</html>
