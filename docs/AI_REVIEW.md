@@ -4,7 +4,7 @@
 
 本文件是外部 AI 审查的单一入口，不替代本地权威状态。运行时权威状态以 Codex 维护的 `reports/agent-coordination/STATE.json` 与 `PROJECT_STATUS.md` 为准；该目录不进入 Git。
 
-最后核对：2026-11-11（America/Los_Angeles）；核对时 `main` 合并提交为 `563ece0`（PR #5）。最新提交始终以 GitHub `main` HEAD 为准。
+最后核对：2026-11-11（America/Los_Angeles）；核对时 `main` 合并提交为 `8182720`（PR #7）。最新提交始终以 GitHub `main` HEAD 为准。
 
 ### 纯文本访问地址（推荐给 ChatGPT / Claude）
 
@@ -54,15 +54,16 @@ NAS-Photo-Intelligence 是一个**只读照片证据引擎**，用于整理中�
 ## 3. 当前可验证状态
 
 - 仓库：`dyxiguajun/NAS-Photo-Intelligence`，public，默认分支 `main`。
-- 核对时 `main`：`563ece0566afa604f3fc033699514953193fbd86`（PR #5）；PR #2 引入本审查入口，PR #3 增加 lockfile 恢复测试，PR #5 公开 DataRestore1 审计摘要。
-- CI：Python 3.12 / 3.13 均通过（PR #5 run 43140352724；main push run 43140687726）。
-- 跟踪文件：95 个（新增 7 个 DataRestore1 脱敏说明文档）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
+- 核对时 `main`：`81827209198f1e48d5e39d6b7268bff2e8bec229`（PR #7）；PR #2 引入本审查入口，PR #3 增加 lockfile 恢复测试，PR #5 公开 DataRestore1 审计摘要，PR #6 完成 C 层 3 个对象像素验证，PR #7 修正公开访问说明。
+- CI：Python 3.12 / 3.13 均通过（PR #6 run 43142942434；PR #7 run 43143234574）。
+- 跟踪文件：96 个（基线 85 + AI 审查入口/`pre-push` + lockfile 测试 + 8 个 DataRestore1 说明）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
 - 回归测试：干净 worktree 中 `117` 项通过（含 5 个 lockfile 恢复用例）。
 - 静态检查：`ruff check src tests tools` 通过。
-- 密钥扫描：自研扫描器 clean（95 files）；`gitleaks` 18 commits no leaks。
+- 密钥扫描：自研扫描器 clean（96 files）；`gitleaks` 20 commits no leaks。
 - 已交付：`tests/test_locked_batch.py` 验证第二实例 exit 75、SIGKILL 后已提交产物保留、进程/子进程退出后解锁、待办重做。
 - DataRestore1 摘要：205 个损坏容器 / 42.63 GB；16,974 个唯一媒体对象，15,449 个可解码，1,352 个高清；详细结论与 7 个缺陷复盘见 `docs/datarestore-audit/`。
-- 正在处理：NAS-005 的断线、ENOSPC、重复启动与冻结清单对账；PNG 损坏/拼接/截断解析（P1）；DSH 高清索引重算与 C 层 3 个对象像素复核；Codex 的整理/迁移生产前验证。
+- C 层复核（PR #6）：3 个“无候选”高清对象的最高 NCC 均 < 0.50（0.3834 / 0.4948 / 0.3863），确认参考池内无同内容候选；其中 1000×1000 具真实照片特征，仍建议人工目视确认。
+- 正在处理：NAS-005 的断线、ENOSPC、重复启动与冻结清单对账；PNG 损坏/拼接/截断解析（P1）；DSH 高清索引（31,115 / 48,672）与 Q1 匹配率重算、参考池 SHA 去重；Codex 的整理/迁移生产前验证。
 
 ## 4. 关键源码路径
 

@@ -1,6 +1,6 @@
 # OpenCode 维护状态
 
-更新时间：2026-11-11 18:35（America/Los_Angeles）
+更新时间：2026-11-11 18:50（America/Los_Angeles）
 角色：GitHub 版本管理、CI、独立代码审计、故障注入与数据完整性保障（三级）
 
 本文件是 OpenCode 的短上下文恢复入口。每次恢复会话先读本文件与 `TASKS.md`，不要重新加载全部历史报告。
@@ -8,9 +8,9 @@
 ## 当前事实（以工作区实测为准）
 
 - GitHub public 仓库：`dyxiguajun/NAS-Photo-Intelligence`，默认分支 `main`；匿名可读，无需 GitHub 登录。
-- 当前 `main`：`563ece0566afa604f3fc033699514953193fbd86`（PR #5 merge）；PR #1 基线 `b5c8010`，PR #2 外部 AI 审查入口 `c6023f4`，PR #3 lockfile 测试 `1db99b6`，PR #4 文档同步 `9d2756a`，PR #5 DataRestore1 摘要 `563ece0`。
-- CI 在 Python 3.12 / 3.13 均通过（PR #5 run 43140352724；main push run 43140687726）。
-- 仓库跟踪 95 个文件（88 + 7 个 DataRestore1 脱敏说明）；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob。
+- 当前 `main`：`81827209198f1e48d5e39d6b7268bff2e8bec229`（PR #7 merge）；PR #1 基线 `b5c8010`，PR #2 外部 AI 审查入口 `c6023f4`，PR #3 lockfile 测试 `1db99b6`，PR #4 文档同步 `9d2756a`，PR #5 DataRestore1 摘要 `563ece0`，PR #6 C 层验证 `f44b099`，PR #7 公开访问说明 `8182720`。
+- CI 在 Python 3.12 / 3.13 均通过（PR #6 run 43142942434；PR #7 run 43143234574）。
+- 仓库跟踪 96 个文件（88 + 8 个 DataRestore1 脱敏说明）；无 `data/`、`reports/`、媒体、SQLite、凭据；无 >1 MiB blob；匿名 GitHub/raw/jsDelivr 均为 HTTP 200。
 - 干净 worktree 全量测试：`117` 项通过，`76.316s`（含 5 个 lockfile 恢复用例）。
 - 外部 AI 审查入口：`docs/AI_REVIEW.md`，README 与 `docs/ARCHITECTURE.md` 已链接；入口内提供 raw / jsDelivr 纯文本地址。
 - 公开访问示例：`https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/AI_REVIEW.md`。
@@ -56,8 +56,8 @@
 - 新增 `tests/test_repository_policy.py`、`tests/test_maintenance_integrity.py`、`tests/test_maintenance_docker_contract.py`。
 - 新增 `tests/test_locked_batch.py`：5 个生成 fixture 用例，覆盖第二实例 exit 75、SIGKILL 后已提交产物保留、进程/子进程退出后解锁、待办重做。
 - 外部 AI 审查入口 `docs/AI_REVIEW.md` 已合并（PR #2），README、架构、状态、安全与任务文档已刷新；PR #4 同步当前 `main` 与测试计数。
-- PR #5 公开 7 个 DataRestore1 脱敏说明文档（205 容器 / 42.63 GB / 16,974 唯一对象）；仓库当前 95 个跟踪文件。
-- 公开仓库、首次推送、PR #1/#2/#3/#4/#5 与 CI 已完成。
+- PR #5 公开 7 个 DataRestore1 脱敏说明文档（205 容器 / 42.63 GB / 16,974 唯一对象）；PR #6 增加 C 层 3 个对象的多尺度 NCC 验证（最高 0.4948 < 0.90，判定不同内容）；PR #7 修正公开访问说明并加入 raw/jsDelivr 地址；仓库当前 96 个跟踪文件。
+- 公开仓库、首次推送、PR #1/#2/#3/#4/#5/#6/#7 与 CI 已完成。
 
 ## 待确认 / 阻塞
 
