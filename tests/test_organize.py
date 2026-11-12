@@ -12,8 +12,10 @@ from nas_photo import organize_evidence as evidence
 from nas_photo.organize_build import prepare
 from nas_photo.organize_exercise import checksum, exercise, verified_copy
 from nas_photo.organize_reconcile import reconcile
+from nas_photo.organize_review import EXCLUDED_BY_USER, reviewed_pilot_browse
 from nas_photo.organize_sha import exact_matches
 from nas_photo.provenance import checkout
+from nas_photo.time_rules import browse_capture_date
 
 DIGEST = 'a' * 64
 
@@ -154,6 +156,54 @@ class InventoryTest(unittest.TestCase):
 
 
 class DecisionsTest(unittest.TestCase):
+    def test_user_review_is_bound_to_materialized_copies_and_preserves_origin_aliases(self):
+        a = {'destination':'recovered/a.png','sha256':DIGEST,'size':20,
+             'copied_from':['recovered','a.png']}
+        b = {'destination':'one/small.png','sha256':'b'*64,'size':25,
+             'copied_from':['one','small.png']}
+        def origin(file, source, role, **extra):
+            return {'source':source,'retained_at':file['destination'],'sha256':file['sha256'],
+                    'size':file['size'],'ledger_state':role,'execution_allowed':False,**extra}
+        lineage = {'frozen_parent':{'source':['restored','parent.bin']},'container_sha256':'c'*64,
+                   'offset':7,'length':20,'object_sha256':DIGEST}
+        origins = [origin(a,a['copied_from'],'processed',recovery=lineage),
+                   origin(b,b['copied_from'],'processed'),
+                   origin(b,['other','alias.png'],'excluded')]
+        def gallery(file, sources, small, warnings=()):
+            return {'path':file['destination'],'sha256':file['sha256'],'bytes':file['size'],
+                    'sources':[{'sid':sid,'path':name} for sid,name in sources],
+                    'width':200,'height':100,'small_recovery':small,'warnings':list(warnings),'time_review':True}
+        cards = [gallery(a,[a['copied_from']],True,['fixture warning']),
+                 gallery(b,[b['copied_from'],['other','alias.png']],False)]
+        review, visible, summary = reviewed_pilot_browse([a,b],origins,cards)
+        self.assertEqual(summary['excluded_media'],1)
+        self.assertEqual(sum(summary['reviewed_category_counts'].values()),3)
+        self.assertEqual(review[0]['status'],EXCLUDED_BY_USER)
+        self.assertEqual(review[0]['sources'][0]['recovery'],lineage)
+        self.assertEqual(visible,origins[1:])
+        self.assertEqual(review[1]['status'],'visible_in_reviewed_pilot')
+        with self.assertRaisesRegex(ValueError,'full frozen pilot'):
+            reviewed_pilot_browse([a,b],origins,cards[:1])
+        with self.assertRaisesRegex(ValueError,'identity'):
+            reviewed_pilot_browse([a,b],origins,[{**cards[0],'sha256':'d'*64},cards[1]])
+
+    def test_l0_copy_mapping_agrees_with_preflight_when_container_is_protected(self):
+        with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
+            index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
+            index.apply_batch(db,'one','v1',[
+                observation('a.jpg',sha256=DIGEST,visual={'status':'valid'}),
+                observation('z.jpg',sha256=DIGEST,recovery_container={'protected':True}),
+            ],coverage='complete')
+            plan = Path(tmp)/'plan'
+            organize.output_plan(db,plan)
+            retain = [json.loads(line)['source'] for line in (plan/'confirmed-retain.jsonl').read_text().splitlines()]
+            self.assertEqual(retain,[['one','z.jpg']])
+            ready = Path(tmp)/'preflight'
+            prepare(index.files(db),plan/'inventory-disposition.jsonl',ready)
+            alias = json.loads((ready/'l0-excluded.jsonl').read_text())
+            self.assertEqual(alias['replacement']['source'],['one','z.jpg'])
+            self.assertEqual(alias['source'],['one','a.jpg'])
+
     def test_pixel_identical_encodings_remain_in_confirmed_retain_export(self):
         with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
             index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
@@ -215,6 +265,26 @@ class DecisionsTest(unittest.TestCase):
         self.assertTrue(proposals[0]['conflict'])
         self.assertIsNone(proposals[0]['proposed'])
 
+    def test_same_instant_with_different_explicit_offsets_is_not_a_metadata_conflict(self):
+        a = item('a.jpg',metadata={'date_time_original':'2019:04:05 00:30:40','offset_time_original':'+08:00'})
+        b = item('b.jpg',metadata={'date_time_original':'2019:04:04 16:30:40','offset_time_original':'+00:00'},
+                 trusted_fields=['date_time_original'])
+        self.assertEqual(decisions.proposals(a,[a,b],'reviewed_same_capture'),[])
+
+    def test_browse_date_retains_local_day_and_uses_filename_and_device_as_clues(self):
+        dated = browse_capture_date([('EXIF','2019:04:05 00:30:40','+08:00',True)],
+                                   ['IMG_20190404_163040.jpg'],camera='camera fixture')
+        self.assertEqual(dated['day'],'2019-04-05')
+        self.assertEqual(dated['evidence'][0]['utc_day'],'2019-04-04')
+        self.assertFalse(dated['notes'])
+        self.assertEqual(len(dated['corroboration']),2)
+        inferred = browse_capture_date([],['IMG_20190404_163040.jpg'])
+        self.assertEqual((inferred['day'],inferred['status']),('2019-04-04','uncertain'))
+        screenshot = browse_capture_date([('EXIF','1970:01:01 00:00:00',None,True)],
+                                        ['Downloads/Screenshot_20190404_163040.png'])
+        self.assertIsNone(screenshot['day'])
+        self.assertEqual(screenshot['filename_days'],['2019-04-04'])
+
     def test_output_plan_is_reproducible(self):
         with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'index.sqlite3', write=True) as db:
             index.register_sources(db, [{'source_id':'restored','device_id':'test','logical_root':'first'}])
@@ -237,6 +307,21 @@ class DecisionsTest(unittest.TestCase):
         self.assertEqual(decisions.recommendation([a,b],'L1')['preferred'],['restored','a.jpg'])
         with self.assertRaises(ValueError):
             decisions.recommendation([a,b],'L2')
+
+    def test_l1_review_explains_metadata_difference_and_keeps_secondary_visible(self):
+        visual = {'status':'valid','width':100,'height':100,'source_dimensions':[100,100],
+                  'pipeline_key':'verified','pixel_sha256':DIGEST}
+        a = item('a.jpg',visual={**visual,'format':'JPEG'},sha256='b'*64,metadata={'model':'camera'})
+        b = item('b.png',visual={**visual,'format':'PNG'},sha256='c'*64,metadata={'description':'retained caption'})
+        result = decisions.recommendation([a,b],'L1')
+        primary, secondary = (version['l1_review'] for version in result['versions'])
+        self.assertEqual(primary['display_advice'],'preferred_version')
+        self.assertEqual(secondary['normalized_dimensions'],[100,100])
+        self.assertEqual(secondary['encoded_format'],'PNG')
+        self.assertEqual(secondary['different_metadata_fields'],['description','model'])
+        self.assertEqual(secondary['display_advice'],'keep_visible_metadata_differs')
+        self.assertTrue(secondary['visible'] and secondary['hide_requires_review'])
+        self.assertFalse(secondary['execution_allowed'])
 
     def test_simulation_accounts_for_every_input_and_collisions(self):
         rows = [item('A.jpg',sha256=DIGEST),item('B.jpg',sha256=DIGEST),item('a.JPG'),

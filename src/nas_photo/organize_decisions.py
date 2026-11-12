@@ -24,6 +24,15 @@ def l1_key(row):
     return (pipeline, pixel) if visual.get('status') == 'valid' and pipeline and pixel else None
 
 
+def assessed_quality(evidence):
+    detail = evidence.get('quality', {})
+    measured, damage = detail.get('detail_score'), detail.get('compression_damage')
+    if (detail.get('assessment_id') and type(measured) in (int,float) and type(damage) in (int,float)
+            and isfinite(measured) and isfinite(damage)):
+        return measured, damage
+    return None
+
+
 def quality(row):
     e = row['evidence']
     visual = e.get('visual', {})
@@ -35,15 +44,19 @@ def quality(row):
     pixels = width * height if width and height else 0
     if derivative == 'upscaled':
         pixels = 0
-    measured = detail.get('detail_score')
-    damage = detail.get('compression_damage')
-    if (not detail.get('assessment_id') or type(measured) not in (int,float)
-            or type(damage) not in (int,float) or not isfinite(measured) or not isfinite(damage)):
-        measured, damage = 0, 0
+    measured, damage = assessed_quality(e) or (0,0)
     metadata = e.get('metadata', {})
     completeness = sum(field_value(field,metadata.get(field)) is not None
                        for field in ('date_time_original','gps','make','model','lens_model'))
     return integrity, provenance, measured, -damage, pixels, completeness
+
+
+def version_rank(row):
+    return tuple(-value for value in quality(row)), identity(row)
+
+
+def exact_copy_keeper(members):
+    return min(members, key=lambda row: (not bool(row['evidence'].get('recovery_container')), version_rank(row)))
 
 
 def capture(value):
@@ -89,6 +102,15 @@ def observed_field(metadata, field):
     return field_value(field, raw)
 
 
+def equal_field(field, left, right):
+    if field != 'date_time_original':
+        return left == right
+    a, b = datetime.fromisoformat(left), datetime.fromisoformat(right)
+    if a.tzinfo is None or b.tzinfo is None:
+        return left == right
+    return a == b
+
+
 def proposals(target, members, relation):
     recommendations = []
     for field in ('date_time_original', 'gps', 'make', 'model', 'lens_model'):
@@ -111,7 +133,8 @@ def proposals(target, members, relation):
         if not observations:
             continue
         preferred = observations[0]['value']
-        conflict = any(item['value'] != preferred for item in observations) or (current is not None and current != preferred)
+        conflict = any(not equal_field(field, item['value'], preferred) for item in observations) or (
+            current is not None and not equal_field(field, current, preferred))
         trusted = [item for item in observations if item['trusted']]
         if not conflict and (current is not None or not trusted):
             continue
@@ -126,12 +149,30 @@ def proposals(target, members, relation):
     return recommendations
 
 
+def l1_version_review(row, primary):
+    evidence, primary_evidence = row['evidence'], primary['evidence']
+    visual = evidence.get('visual', {})
+    metadata, primary_metadata = evidence.get('metadata', {}), primary_evidence.get('metadata', {})
+    fields = sorted(field for field in metadata.keys() | primary_metadata.keys()
+                    if metadata.get(field) != primary_metadata.get(field))
+    _, _, _, _, pixels, completeness = quality(row)
+    detail, damage = assessed_quality(evidence) or (None,None)
+    hold = 'preferred_version' if row is primary else (
+        'keep_visible_metadata_differs' if fields else 'review_as_secondary_version')
+    return {'encoded_format':visual.get('format'), 'encoded_dimensions':visual.get('source_dimensions'),
+            'normalized_dimensions':[visual.get('width'),visual.get('height')],
+            'effective_pixels':pixels, 'detail_score':detail, 'compression_damage':damage,
+            'recognized_metadata_fields':completeness, 'different_metadata_fields':fields,
+            'display_advice':hold,'external_associations':'unverified',
+            'visible':True,'hide_requires_review':True,'execution_allowed':False}
+
+
 def recommendation(members, relation, reviewed_pairs=()):
     if len(members) < 2 or any(row['state'] != 'present' for row in members):
         raise ValueError('Version selection requires at least two current files')
     if len({tuple(identity(row)) for row in members}) != len(members):
         raise ValueError('Duplicate member')
-    ranked = sorted(members, key=lambda row: (tuple(-x for x in quality(row)), identity(row)))
+    ranked = sorted(members, key=version_rank)
     target = ranked[0]
     review_ids = []
     if relation == 'reviewed_same_capture':
@@ -160,6 +201,9 @@ def recommendation(members, relation, reviewed_pairs=()):
                  'advice':('proposed_keep' if row is target and integrity==2 else
                            'representative_needs_decode_review' if row is target else 'preserve_pending_review')}
                 for row in ranked]
+    if relation == 'L1':
+        for version, row in zip(versions, ranked):
+            version['l1_review'] = l1_version_review(row, target)
     return {'preferred':identity(target) if integrity == 2 else None,
             'review_representative':identity(target),'reasons':reasons,'relation':relation,
             'alternatives':[identity(row) for row in ranked[1:]],
@@ -214,7 +258,7 @@ def simulation(rows, reviewed_groups=()):
             exact[key].append(row)
         if key := l1_key(row):
             pixels[key].append(row)
-    exact_decisions, pixel_decisions, metadata = {}, {}, []
+    exact_decisions, copy_targets, pixel_decisions, pixel_reviews, metadata = {}, {}, {}, {}, []
     originals, assigned = destinations(present)
     for groups, label, output in ((exact,'L0',exact_decisions),(pixels,'L1',pixel_decisions)):
         for members in groups.values():
@@ -225,6 +269,13 @@ def simulation(rows, reviewed_groups=()):
             metadata.extend(rec['metadata'])
             for row in members:
                 output[tuple(identity(row))] = rec
+            if label == 'L0':
+                keeper = identity(exact_copy_keeper(members))
+                for row in members:
+                    key = tuple(identity(row))
+                    copy_targets[key] = identity(row) if row['evidence'].get('recovery_container') else keeper
+            else:
+                pixel_reviews.update((tuple(version['source']),version['l1_review']) for version in rec['versions'])
     manually_reviewed = {}
     by_identity = {tuple(identity(row)):row for row in rows}
     for group in reviewed_groups:
@@ -269,11 +320,13 @@ def simulation(rows, reviewed_groups=()):
         if exact_group:
             item['l0_review_representative'] = exact_group['review_representative']
             item['l0_preferred'] = exact_group['preferred']
+            item['l0_copy_target'] = copy_targets[key]
         if pixel_group:
             item['l1_review_representative'] = pixel_group['review_representative']
             representative = by_identity[tuple(pixel_group['review_representative'])]
             item['l1_metadata_differs_from_representative'] = (
                 row['evidence'].get('metadata') != representative['evidence'].get('metadata'))
+            item['l1_version_review'] = pixel_reviews[key]
         if key in manually_reviewed:
             item['reviewed_same_capture_representative'] = manually_reviewed[key]['review_representative']
             item['review_ids'] = manually_reviewed[key]['review_ids']

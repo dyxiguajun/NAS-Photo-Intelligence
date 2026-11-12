@@ -1,5 +1,5 @@
 """Evidence-preserving calendar parsing. Unknown timezone never becomes UTC."""
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 import re
 
@@ -59,6 +59,73 @@ def auxiliary_dates(relative_path):
                              "precision": precision, "timezone": "unknown", "parsed": None,
                              "utc": None, "error": None})
     return evidence
+
+
+def browse_capture_date(fields, paths, *, camera=None, today=None):
+    """Preserve calendar clues without assigning filesystem time to a capture."""
+    today = today or date.today()
+    paths = tuple(paths)
+
+    def plausible(day):
+        return (day and not day.startswith('1970-')
+                and date(1900, 1, 1) <= date.fromisoformat(day) <= today)
+
+    evidence = []
+    for label, raw, offset, is_capture in fields:
+        if not raw:
+            continue
+        parsed = parse_time(label, raw, 'embedded_metadata', offset=offset)
+        invalid_offset = bool(offset and not parsed['parsed'])
+        if invalid_offset:
+            parsed = parse_time(label, raw, 'embedded_metadata')
+        day = parsed['parsed'][:10] if parsed['parsed'] else None
+        status = ('invalid' if not day else 'unusual' if not plausible(day)
+                  else 'recorded' if is_capture else 'uncertain')
+        evidence.append({'day':day,'utc_day':parsed['utc'][:10] if parsed['utc'] else None,
+                         'label':label,'raw':raw,'offset':offset,'status':status,
+                         'offset_invalid':invalid_offset and bool(day)})
+    filename_days = sorted({entry['parsed'][:10] for path in paths for entry in auxiliary_dates(path)
+                            if entry['field']=='filename_datetime' and entry['parsed']
+                            and plausible(entry['parsed'][:10])})
+    best = next((entry for entry in evidence if entry['status']=='recorded'), None)
+    best = best or next((entry for entry in evidence if entry['status']=='uncertain'), None)
+    best = best or next((entry for entry in evidence if entry['day']), None)
+    notes, corroboration = [], []
+    if any(entry['status']=='unusual' for entry in evidence):
+        notes.append('嵌入时间含 1970 年或超出合理日期范围')
+    if any(entry['status']=='invalid' for entry in evidence):
+        notes.append('存在无法解析的嵌入日期')
+    if any(entry['offset_invalid'] for entry in evidence):
+        notes.append('时区字段无效，显示原记录的日历日期')
+    if camera:
+        corroboration.append('存在 EXIF 设备记录，设备信息仅作为来源线索')
+    matching_days = {best['day'],best['utc_day']} if best else set()
+    if len(filename_days)>1 and not set(filename_days)<=matching_days:
+        notes.append('同字节副本的文件名含不同日期')
+    if best and best['day'] and filename_days:
+        if set(filename_days)<=matching_days:
+            corroboration.append('文件名日期与嵌入时间的本地日或 UTC 日吻合')
+        else:
+            notes.append('文件名日期与嵌入日期不同')
+    screenshot_or_download = any(
+        re.search(r'(?:^|/)(?:screenshots?|downloads?|截屏|截图|屏幕快照|下载)(?:/|[ _.-]|$)',
+                  path, flags=re.IGNORECASE) for path in paths)
+    if screenshot_or_download and (not best or best['status']!='recorded'):
+        if best or filename_days:
+            notes.append('截图或下载文件缺少可靠拍摄时间，其他日期仅作为线索')
+        day, label, raw = None, '无可核验拍摄日期', None
+        status = 'uncertain' if notes else 'missing'
+    elif best and best['status']!='unusual':
+        day, status, label, raw = best['day'],best['status'],best['label'],best['raw']
+    elif len(filename_days)==1:
+        day, status, label, raw = filename_days[0], 'uncertain', '文件名推断', None
+    elif best:
+        day, status, label, raw = None, 'uncertain', best['label'],best['raw']
+    else:
+        day, label, raw = None, '无可核验拍摄日期', None
+        status = 'uncertain' if notes else 'missing'
+    return {'day':day,'status':status,'label':label,'raw':raw,'notes':notes,
+            'evidence':evidence,'filename_days':filename_days,'corroboration':corroboration}
 
 
 def analyze(fs, metadata, votes, rules, relpath, now=None):
