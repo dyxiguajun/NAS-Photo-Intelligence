@@ -66,7 +66,8 @@ def publish_file(path, data):
 def validate(item, sender, filename):
     required = {'message_id','sender','recipients','time','type','task_id',
                 'priority','body','artifacts','reply_required'}
-    if not isinstance(item,dict) or item.keys()-required-{'in_reply_to','manifest_sha256'} or not required<=item.keys():
+    optional = {'in_reply_to','manifest_sha256','related_task_ids','related_reply_ids'}
+    if not isinstance(item,dict) or item.keys()-required-optional or not required<=item.keys():
         raise ValueError('Missing or unsupported message fields')
     if (item['sender']!=sender or not KEY.fullmatch(item['message_id'])
             or (filename.endswith('.json') and filename!=item['message_id']+'.json')):
@@ -90,6 +91,20 @@ def validate(item, sender, filename):
         raise ValueError('Invalid reply identity')
     if 'manifest_sha256' in item and not DIGEST.fullmatch(item['manifest_sha256']):
         raise ValueError('Invalid frozen manifest digest')
+    for related, primary, pattern in (('related_task_ids','task_id',TASK),('related_reply_ids','in_reply_to',KEY)):
+        if related not in item:
+            continue
+        values = item[related]
+        if (not isinstance(values,list) or primary not in item or not values
+                or any(not isinstance(value,str) or not pattern.fullmatch(value) for value in values)
+                or len(set(values))!=len(values) or item[primary] in values):
+            raise ValueError(f'Invalid {related}')
+
+
+def legacy_list(value):
+    if value.startswith('[') and value.endswith(']'):
+        value = value[1:-1]
+    return [part.strip() for part in value.split(',')]
 
 
 def send(project, sender, *, recipients, kind, task_id, priority, body, artifacts, manifest_sha256,
@@ -126,7 +141,9 @@ def read_message(path):
     text = path.read_text()
     if not text.startswith('---\n'):
         return read_markdown_note(text)
-    _, header, body = text.split('---',2)
+    header, separator, body = text[4:].partition('\n---\n')
+    if not separator:
+        raise ValueError('Unclosed Markdown message header')
     fields = {}
     for line in header.splitlines():
         if not line.strip():
@@ -139,13 +156,19 @@ def read_message(path):
     reply = fields['reply_required'].lower()
     if reply not in ('true','false'):
         raise ValueError('Invalid Markdown reply flag')
+    task,*related_tasks = legacy_list(fields['task_id'])
     item = {'message_id':fields['message_id'],'sender':fields['from'].lower(),
-            'recipients':[name.strip().lower() for name in fields['to'].strip('[]').split(',')],
-            'time':fields['time'],'type':fields['type'],'task_id':fields['task_id'],
+            'recipients':[name.lower() for name in legacy_list(fields['to'])],
+            'time':fields['time'],'type':fields['type'],'task_id':task,
             'priority':{'urgent':'P0','high':'P1','normal':'P2','low':'P3'}.get(priority.lower(),priority),
             'body':body.strip(),'artifacts':[],'reply_required':reply=='true'}
+    if related_tasks:
+        item['related_task_ids'] = related_tasks
     if 'in_reply_to' in fields:
-        item['in_reply_to'] = fields['in_reply_to']
+        reply_to,*related_replies = legacy_list(fields['in_reply_to'])
+        item['in_reply_to'] = reply_to
+        if related_replies:
+            item['related_reply_ids'] = related_replies
     if 'manifest_sha256' in fields:
         item['manifest_sha256'] = fields['manifest_sha256']
     return item
@@ -181,7 +204,11 @@ def read_messages(project, agent):
     for sender, area in AGENTS.items():
         if sender==agent:
             continue
-        outbox = within(project,area/'outbox')
+        try:
+            outbox = within(project,area/'outbox')
+        except (OSError,ValueError) as error:
+            errors.append({'path':str(area/'outbox'),'error':str(error)})
+            continue
         candidates = [*outbox.glob('*.json'), *(path for path in outbox.glob('*.md') if path.name!='README.md')]
         for path in sorted(candidates):
             try:
@@ -223,8 +250,10 @@ def sync(project, agent, include_read=False):
         processed = False
         if receipt.exists():
             try:
+                if receipt.is_symlink() or not receipt.is_file() or receipt.stat().st_size>MAX_BYTES:
+                    raise ValueError('Expected a small regular receipt file')
                 row = json.loads(receipt.read_bytes())
-                if (receipt.is_symlink() or row['message_id']!=item['message_id'] or row['recipient']!=agent
+                if (row['message_id']!=item['message_id'] or row['recipient']!=agent
                         or datetime.fromisoformat(row['processed_at']).utcoffset() is None):
                     raise ValueError('Receipt identity or time mismatch')
                 processed = True
@@ -233,12 +262,21 @@ def sync(project, agent, include_read=False):
         if include_read or not processed:
             inbox.append({**item,'processed':processed,'version_status':
                           'manifest_declared' if item.get('manifest_sha256') else 'legacy_manifest_unspecified'})
+    outboxes = {}
+    for sender,area in AGENTS.items():
+        directory = area/'outbox'
+        try:
+            present = within(project,directory).is_dir()
+        except (OSError,ValueError) as error:
+            present = False
+            if sender==agent:
+                errors.append({'path':str(directory),'error':str(error)})
+        outboxes[sender] = {'path':str(directory),'present':present}
     return {'agent':agent,
             'project_status':str(CENTRAL/'PROJECT_STATUS.md'),'task_board':str(CENTRAL/'TASK_BOARD.md'),
             'decision_log':str(CENTRAL/'DECISIONS.md'),
             'authoritative_state':str(CENTRAL/'STATE.json'),
-            'outboxes':{sender:{'path':str(area/'outbox'),'present':within(project,area/'outbox').is_dir()}
-                        for sender,area in AGENTS.items()},
+            'outboxes':outboxes,
             'inbox':inbox,'errors':errors}
 
 

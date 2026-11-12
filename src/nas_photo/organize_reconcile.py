@@ -5,7 +5,7 @@ from .config import relative
 from .organize_index import SHA256
 
 
-def validate(manifest):
+def validate(manifest, *, require_complete_sha=False):
     if not manifest['scope'] or not manifest['version'] or type(manifest['complete']) is not bool:
         raise ValueError('A scope, version and coverage flag are required')
     files = {}
@@ -16,11 +16,15 @@ def validate(manifest):
         if digest is not None and (not isinstance(digest,str) or not SHA256.fullmatch(digest)):
             raise ValueError('Invalid manifest SHA-256')
         files[path] = (size,digest)
+    if require_complete_sha and (not manifest['complete'] or manifest.get('unavailable')
+                                 or any(digest is None for _,digest in files.values())):
+        raise ValueError('Formal reconciliation requires complete inventory and SHA-256 for every file')
     return files
 
 
-def reconcile(source, destination):
-    left, right = validate(source), validate(destination)
+def reconcile(source, destination, *, require_complete_sha=False):
+    left = validate(source, require_complete_sha=require_complete_sha)
+    right = validate(destination, require_complete_sha=require_complete_sha)
     reusable = defaultdict(list)
     for path, key in sorted(right.items()):
         if key[1] is not None:
@@ -49,4 +53,6 @@ def reconcile(source, destination):
     return {'source':{k:source[k] for k in ('scope','version','complete')},
             'destination':{k:destination[k] for k in ('scope','version','complete')},
             'source_paths':len(left),'destination_paths':len(right),'counts':count,
-            'source_bytes_by_state':bytes_by_state,'rows':rows,'execution_allowed':False}
+            'source_bytes_by_state':bytes_by_state,'rows':rows,'execution_allowed':False,
+            'all_content_verified':source['complete'] and destination['complete']
+                                   and count['verified_equal']==len(rows)}

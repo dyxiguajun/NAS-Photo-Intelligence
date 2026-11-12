@@ -1,14 +1,16 @@
 # NAS Photo Intelligence Engine
 
+> 历史快照。现状以 [docs/AI_REVIEW.md](https://github.com/dyxiguajun/NAS-Photo-Intelligence/blob/main/docs/AI_REVIEW.md) 与本地 [STATE.json](reports/agent-coordination/STATE.json) 为准。
+
 命令行照片证据引擎：只读元数据索引、异常标签、SHA-256 完全重复检测、规范化像素相同检测及视觉相似候选。SQLite、任务队列和输出均在 Mac 本地；不执行删除、照片移动或元数据修复。
 
 > **外部 AI 审查入口 / External review entry:** [docs/AI_REVIEW.md](docs/AI_REVIEW.md)。本仓库当前为公开仓库，可直接读取；如 GitHub 页面受限，入口文档内提供 raw / jsDelivr 纯文本地址。生产媒体、原始 SQLite、完整恢复索引、凭据和未脱敏日志不进入 Git。
 
-Phase 3 已完成 28 个 NAS 文件的有限验证：26 张图片生成指纹，2 个文件跳过，发现 1 对未确认视觉候选。最新结果见 `docs/phases/PHASE3_REPORT.md`，历史 Phase 1/2 报告保留，恢复入口为 `HANDOFF.md`。原始阶段要求、报告与 Phase 0 证据统一见 [阶段资料索引](docs/phases/README.md)。
+Phase 3 已完成 28 个 NAS 文件的有限验证：26 张图片生成指纹，2 个文件跳过，发现 1 对未确认视觉候选。该阶段的结果见 `docs/phases/PHASE3_REPORT.md`，历史 Phase 1/2 报告保留，恢复入口为 `HANDOFF.md`。原始阶段要求、报告与 Phase 0 证据统一见 [阶段资料索引](docs/phases/README.md)。
 
 ## Phase 3.1 稳定性维护
 
-已修正 RSS 测试对内存驻留量和采样同步的假设，生产监控及阈值未修改。20 次受控 RSS 场景通过，完整回归 78 项通过；本轮不需要 NAS，也没有读取照片。定位证据、历史首测的不确定性和轮询边界见 [维护报告](PHASE3_1_REPORT.md)。
+已修正 RSS 测试对内存驻留量和采样同步的假设，生产监控及阈值未修改。20 次受控 RSS 场景通过，回归结果见当期验证日志；本轮不需要 NAS，也没有读取照片。定位证据、历史首测的不确定性和轮询边界见 [维护报告](PHASE3_1_REPORT.md)。
 
 本地复现：`.venv/bin/python tools/phase3_1_diagnostics.py --iterations 20`。它顺序执行，保存 RSS/PID/信号/退出证据，不启动照片分析。RSS 轮询仍不是 OS 硬性内存上限。
 
@@ -28,7 +30,7 @@ python3 -m venv .venv
 .venv/bin/python nas_photo_cli.py similarity report --job VISUAL_JOB_ID --export
 ```
 
-manifest 必须显式提供，且文件须已有元数据索引；不会自动发现或全库扫描。当前 `config/phase3_samples.json` 是本轮固定 28 个文件，其中原 15 个保留。已完成任务为 `3af529a4ed29418591650a7f7c72f8bf`。查询该任务并导出不读取原图。
+manifest 必须显式提供，且文件须已有元数据索引；不会自动发现或全库扫描。Phase 3 的 `config/phase3_samples.json` 固定了 28 个文件，其中原 15 个保留。已完成任务为 `3af529a4ed29418591650a7f7c72f8bf`。查询该任务并导出不读取原图。
 
 L1 是指定解码器/规范化版本下完整 RGBA8 像素相同；L2 只给出视觉候选，不判断应该保留或删除哪张。报告同时保留原元数据、时间异常、来源路径、尺寸、格式、指纹、距离和验证状态。支持 JPEG/PNG/HEIC 主图；MOV、动画/多帧 JPEG/PNG、高位深/HDR、无法可靠转换的色彩模式或超资源图片跳过并记录原因。
 
@@ -54,7 +56,7 @@ L1 是指定解码器/规范化版本下完整 RGBA8 像素相同；L2 只给出
 .venv/bin/python tools/phase3_local_validation.py
 ```
 
-第二条只生成本地合成案例证据，不读取 NAS。真实验收的读量、缓存和迁移证据在 `reports/phase3_validation.json`。不要自行扩大 manifest 或进入下一阶段。
+第二条只生成本地合成案例证据，不读取 NAS。真实验收的读量、缓存和迁移证据在 `reports/phase3_validation.json`。复现此试点时使用原固定清单。
 
 ## 完全重复检测（Phase 2）
 

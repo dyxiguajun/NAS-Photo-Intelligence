@@ -9,6 +9,19 @@ from agent_sync import AGENTS, acknowledge, send, sync
 
 
 class AgentSyncTest(unittest.TestCase):
+    def test_symlinked_outbox_does_not_interrupt_other_sender(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            unsafe = root/AGENTS['dsh']/'outbox'
+            unsafe.parent.mkdir(parents=True)
+            unsafe.symlink_to(root/'other',target_is_directory=True)
+            sent = send(root,'opencode',recipients=['codex'],kind='INFO',task_id='NAS-005',
+                        priority='P1',body='Valid independent message',artifacts=[],manifest_sha256='c'*64)
+            received = sync(root,'codex')
+            self.assertEqual([m['message_id'] for m in received['inbox']],[sent['message_id']])
+            self.assertEqual(len(received['errors']),1)
+            self.assertFalse(received['outboxes']['dsh']['present'])
+
     def test_atomic_publish_read_and_receipt(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
@@ -44,9 +57,10 @@ from: DSH
 to: [Codex, OpenCode]
 time: 2026-11-11T21:00:00Z
 type: INFO
-task_id: G2.2
+task_id: G2.2, NAS-008
 priority: normal
 reply_required: true
+in_reply_to: [codex-original, codex-follow-up]
 ---
 
 Delivered evidence.
@@ -69,6 +83,10 @@ Review complete.
 """)
             result = sync(root,'codex')
             self.assertEqual([r['message_id'] for r in result['inbox']],['OC-0001','DSH-0001'])
+            dsh = result['inbox'][1]
+            self.assertEqual((dsh['task_id'],dsh['related_task_ids']),('G2.2',['NAS-008']))
+            self.assertEqual((dsh['in_reply_to'],dsh['related_reply_ids']),
+                             ('codex-original',['codex-follow-up']))
             self.assertEqual(len(result['errors']),1)
             self.assertTrue(acknowledge(root,'codex','DSH-0001'))
 

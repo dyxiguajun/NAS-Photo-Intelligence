@@ -4,6 +4,7 @@ from collections import Counter
 from hashlib import file_digest
 import json
 from pathlib import Path
+import re
 
 
 def digest(path):
@@ -24,11 +25,14 @@ def verify(root):
             raise ValueError(f'Checksum mismatch: {name}')
     if summary['manifest_sha256']!=digest(root/'frozen-manifest.jsonl'):
         raise ValueError('Frozen denominator checksum mismatch')
+    formal = summary.get('mode') == 'formal_preflight'
     remaining = {}
     for row in records(root/'frozen-manifest.jsonl'):
         key = tuple(row['source'])
         if key in remaining:
             raise ValueError('Duplicate input identity')
+        if formal and (row['state'] != 'present' or not re.fullmatch('[a-f0-9]{64}', row.get('sha256') or '')):
+            raise ValueError('Formal frozen record lacks a complete content SHA-256')
         remaining[key] = row
     denominator = len(remaining)
     ready = {}
@@ -40,7 +44,8 @@ def verify(root):
             frozen = remaining.pop(key,None)
             state = row['ledger_state']
             if (frozen is None or row['stat']!=frozen['stat'] or state not in allowed
-                    or row['execution_allowed'] is not False):
+                    or row['execution_allowed'] is not False
+                    or (formal and (row['sha256'] != frozen['sha256'] or name == 'blocked.jsonl'))):
                 raise ValueError('Missing, duplicated or inconsistent ledger disposition')
             states[state] += 1
             volumes[row['status']] += row['stat'][0] or 0
