@@ -145,9 +145,8 @@ def output_plan(db, output, reviewed_groups=(), candidate_queries=(), *,
                                         and 'l0_review_representative' in r),
             'l1-equal-pixels-review.jsonl':(r for r in items if 'l1_review_representative' in r),
             'no-confirmed-alternative.jsonl':(r for r in items if r['action'] == 'retain_pending_search'),
-            'confirmed-retain.jsonl':(r for r in items if r['state']=='present' and (
-                                      r.get('recovery_protection') or not r.get('l0_preferred')
-                                      or r['l0_preferred']==r['source'])),
+            'confirmed-retain.jsonl':(r for r in items if r['state']=='present'
+                                     and r.get('l0_copy_target',r['source'])==r['source']),
             'recovery-source-protection.jsonl':(r for r in items if r.get('recovery_protection')),
             'manual-review.jsonl':(r for r in items if r['action'] != 'retain_pending_search'
                                    or tuple(r['source']) in unresolved or r['decode_status']=='failed'),

@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from .metadata import secure_path
-from .organize_decisions import destinations, identity, l0_key, quality
+from .organize_decisions import destinations, exact_copy_keeper, identity, l0_key
 from .organize_exercise import checksum, verified_copy
 from .organize_index import SHA256, encode
 
@@ -37,8 +37,7 @@ def prepare(rows, disposition, output, *, provenance=None, expected_disposition_
     representative = {}
     for key, members in exact.items():
         if len(members)>1:
-            representative[key] = min(members,key=lambda row: (
-                not bool(row['evidence'].get('recovery_container')),tuple(-v for v in quality(row)),identity(row)))
+            representative[key] = exact_copy_keeper(members)
     counts, volume, largest = Counter(), Counter(), 0
     ledger_counts = Counter()
     input_digest = sha256()
@@ -74,6 +73,10 @@ def prepare(rows, disposition, output, *, provenance=None, expected_disposition_
                         raise ValueError('Disposition does not match the current frozen inventory')
                     keeper = representative.get(l0_key(original))
                     protection = original['evidence'].get('recovery_container')
+                    if 'l0_copy_target' in item:
+                        expected = identity(original if protection else keeper) if keeper is not None else None
+                        if item['l0_copy_target'] != expected:
+                            raise ValueError('Disposition L0 target differs from the verified copy mapping')
                     replacement = None
                     if keeper is not None and identity(keeper)!=list(key) and not protection:
                         replacement = {'source':identity(keeper),'destination':targets[tuple(identity(keeper))],
