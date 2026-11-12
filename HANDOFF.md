@@ -1,12 +1,14 @@
 # NAS Photo Intelligence Engine — Phase 3.1 交接
 
-更新时间：2026-10-17。**Phase 3.1 维护完成，停在该阶段；Phase 4 未授权。** 当前报告为 `PHASE3_1_REPORT.md`，机器验收为 `reports/phase3_1_validation.json`，本轮原要求为 `docs/phases/PHASE3_1_REQUIREMENTS.md`。
+> 历史快照。现状以 [docs/AI_REVIEW.md](https://github.com/dyxiguajun/NAS-Photo-Intelligence/blob/main/docs/AI_REVIEW.md) 与本地 [STATE.json](reports/agent-coordination/STATE.json) 为准。
+
+记录日期为 2026-10-17。Phase 3.1 的维护报告为 `PHASE3_1_REPORT.md`，机器验收为 `reports/phase3_1_validation.json`，本轮原要求为 `docs/phases/PHASE3_1_REQUIREMENTS.md`。
 
 ## 本轮结论
 
 旧 RSS 整合用例第 7 次重复复现原正常返回：200 MiB 全零对象分配后，RSS 阶段 23 次实测采样最大仅 21.14 MiB，未超过 128 MiB 阈值。已确认测试没有保证实际 RSS 超限；未观察到持续超限而不终止的生产故障。历史首测没有 RSS 时间线，无法逐细节还原，也未最终区分底层页驻留机制。
 
-修订测试使用明确握手、随机填充且持续访问的内存，真实 supervisor/ps/信号路径不变。20 个受控 RSS 场景全部触发 memory_limit，目标全部回收且信号仅指向自身组；正常、崩溃、SIGTERM→SIGKILL、真实 RSS 队列恢复和父进程强杀恢复通过。完整回归 **78 项通过，42.721 秒**。
+修订测试使用明确握手、随机填充且持续访问的内存，真实 supervisor/ps/信号路径不变。20 个受控 RSS 场景全部触发 memory_limit，目标全部回收且信号仅指向自身组；正常、崩溃、SIGTERM→SIGKILL、真实 RSS 队列恢复和父进程强杀恢复通过。当期完整回归结果保存在下方列出的测试日志。
 
 生产 Python 源码及阈值完全未改，Schema 仍为 3，正式数据库所有行与维护前一致、完整性/外键正常；三份历史备份字节未变。本轮 NAS 内容读取、stat 探测、新样本、写入和重连均为 0。不要为复现维护任务连接 NAS。
 
@@ -31,7 +33,7 @@
 
 RSS 轮询不是 OS 硬上限，采样最大值不是生命周期绝对峰值，仍可能漏过瞬时超限。主进程死后的 worker 最终回收由 OS 接管；测试确认其消失或非可运行，不能冒称由死亡父进程回收。
 
-不要重做 Phase 0～3，不修改视觉相似规则，不开始 Phase 4，不新增 GUI/部署/全库扫描，不执行清理或修复照片。
+复现 Phase 3.1 维护使用隔离测试与原固定清单。
 
 ## 现有数据与网络背景
 
@@ -39,7 +41,7 @@ RSS 轮询不是 OS 硬上限，采样最大值不是生命周期绝对峰值，
 
 公寓外 Tailscale NAS 地址 <TAILSCALE_NAS_IP>，局域网地址 <LAN_NAS_IP> 是同一设备，AI 共享通常挂载 `/Volumes/<NAS_SHARE>`。这是前次检查背景，本轮没有重新检查或重挂载。网络离线不妨碍 Phase 3.1 本地复现。来源身份始终 source_id + relative_path；DICM 保留真实拼写，两个 MobileBackup 分开。
 
-原始 NAS 照片不得删除、移动、改名、改 EXIF/时间/权限、覆盖或外传。Phase 3 固定范围 `config/phase3_samples.json` 仍为原 28 项；不得自动扩大或开始下一阶段。
+原始 NAS 照片不得删除、移动、改名、改 EXIF/时间/权限、覆盖或外传。Phase 3 固定范围 `config/phase3_samples.json` 为该阶段记录的 28 项。
 
 ## 服务与额度
 
@@ -49,4 +51,4 @@ RSS 轮询不是 OS 硬上限，采样最大值不是生命周期绝对峰值，
 
 历史开发文档在 `docs/phases/`，前次检查为 `PROJECT_INSPECTION_2026-10-17.md`。维护前完整交接保存在 `docs/PHASE3_HANDOFF_2026-10-17_before_maintenance.md`，旧交接及报告没有覆盖。
 
-`data/index.pre-phase2.sqlite3`、`data/index.pre-phase3.sqlite3`、`data/index.phase3-complete.sqlite3` 均保留原字节；无需新迁移、重建索引或覆盖备份。当前没有后台照片任务。本轮工作已结束，等待用户下一阶段明确授权。
+`data/index.pre-phase2.sqlite3`、`data/index.pre-phase3.sqlite3`、`data/index.phase3-complete.sqlite3` 均保留原字节。当前任务与恢复入口见页首的权威状态。

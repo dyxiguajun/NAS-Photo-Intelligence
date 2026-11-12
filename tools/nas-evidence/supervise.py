@@ -24,10 +24,13 @@ def main():
                 # Older pinned runners lack the large-file profile.
                 large = manifest['profile']=='native-sha256-large-file-v1'
                 while True:
-                    subprocess.run(
+                    process = subprocess.run(
                         [sys.executable,'-B',str(root/'nas_evidence_worker.py'),'run','--manifest',str(args.manifest),
                          '--media-root','/media','--seconds','900'],
-                        stdout=log,stderr=log,check=True,timeout=1850 if large else 1000)
+                        stdout=log,stderr=log,timeout=1850 if large else 1000)
+                    if process.returncode == 75:
+                        return 75
+                    process.check_returncode()
                     if (root/f'{len(batches):05}.json').is_file():
                         break
                 import json
@@ -51,4 +54,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

@@ -223,8 +223,13 @@ def run(args):
         raise ValueError('Job directory must match the manifest digest')
     started = time.monotonic()
     large = manifest['profile']==LARGE_SHA_PROFILE
-    with (scratch.parent / '.worker.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    lock_fd = os.open(scratch.parent / '.worker.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(lock_fd, 'a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print('NAS evidence workspace already has an active worker', file=sys.stderr, flush=True)
+            return 75
         if not large:
             observed = subprocess.check_output([args.exiftool, '-ver'], text=True, timeout=10).strip()
             if observed != manifest['exiftool_version']:
@@ -268,7 +273,7 @@ def main():
     elif args.manifest is None or args.media_root is None or not 1 <= args.seconds <= 3600:
         parser.error('run requires a manifest, media root and a 1..3600 second scheduling window')
     else:
-        run(args)
+        sys.exit(run(args))
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 from argparse import Namespace
 from concurrent.futures import ThreadPoolExecutor
 import errno
+import fcntl
 from hashlib import sha256
 from pathlib import Path
 import json
@@ -23,6 +24,7 @@ EVIDENCE_ROOT = PROJECT/'tools/nas-evidence'
 sys.path.insert(0,str(EVIDENCE_ROOT))
 from nas_evidence_worker import FILE_BYTES, LARGE_SHA_PROFILE, PROFILE, canonical, digest, identity, run, validate_result, write_checkpoint
 from evidence_intake import READER, WORKER, import_results, plan, verified_checkpoints
+from sha_queue import checkpoint_summary
 
 
 class EvidenceJobTest(unittest.TestCase):
@@ -48,7 +50,12 @@ class EvidenceJobTest(unittest.TestCase):
                 path = base/'jobs'/job_id/'manifest.json'
                 path.parent.mkdir(parents=True)
                 write_checkpoint(path,manifest)
-                run(Namespace(manifest=path,media_root=media,exiftool='no-such-exiftool',seconds=10,yield_busy=False))
+                args = Namespace(manifest=path,media_root=media,exiftool='no-such-exiftool',seconds=10,yield_busy=False)
+                with (path.parent.parent/'.worker.lock').open('a') as lock:
+                    fcntl.flock(lock,fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    self.assertEqual(run(args),75)
+                    self.assertFalse((path.parent/'00001.json').exists())
+                run(args)
                 report = import_results(db,path,manifest,job_id)
                 self.assertEqual(report['counts'],{'rows_observed':1,'sha256_success':1,'metadata_success':0,
                                                  'metadata_file_error':0})
@@ -58,6 +65,17 @@ class EvidenceJobTest(unittest.TestCase):
                 expected.update(b'\0')
                 checkpoint = json.loads((path.parent/'00001.json').read_bytes())
                 self.assertEqual(checkpoint['records'][0]['sha256'],expected.hexdigest())
+
+    def test_sha_queue_counts_identity_errors_against_requested_denominator(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp)
+            manifest = {'rows':[{'path':'photo.jpg','stat':[3,2,1],'ops':['sha256']}]}
+            self.assertEqual(checkpoint_summary(path,manifest,'a'*64),(False,{}))
+            record = {'path':'photo.jpg','stat':[3,2,1],'errors':{'identity':'File not found'}}
+            write_checkpoint(path/'00001.json',{'manifest_sha256':'a'*64,'chunk':1,'records':[record]})
+            complete, counts = checkpoint_summary(path,manifest,'a'*64)
+            self.assertTrue(complete)
+            self.assertEqual(counts,{'observed':1,'sha256_requested':1,'sha256_unresolved':1})
 
     def test_checkpoint_publish_is_immutable_under_competing_writers(self):
         with TemporaryDirectory() as tmp:

@@ -9,6 +9,7 @@ import os
 from . import organize_index as index
 from . import organize_evidence as evidence
 from .organize_decisions import identity, l0_key, l1_key, recommendation, simulation
+from .organize_exercise import checksum
 from .similarity import comparison_options, pair_evidence
 
 
@@ -17,7 +18,9 @@ def configure(parser):
     sub = parser.add_subparsers(dest='organize_command', required=True)
     sub.add_parser('status')
     sub.add_parser('register')
-    sub.add_parser('manifest').add_argument('--source', required=True)
+    manifest = sub.add_parser('manifest')
+    manifest.add_argument('--source', required=True)
+    manifest.add_argument('--require-complete-sha', action='store_true')
     ingest = sub.add_parser('ingest')
     ingest.add_argument('--manifest', required=True)
     for command in ('verify-evidence','ingest-evidence'):
@@ -26,6 +29,8 @@ def configure(parser):
     plan.add_argument('--output', required=True)
     plan.add_argument('--reviewed-groups')
     plan.add_argument('--candidate-queries')
+    plan.add_argument('--frozen-manifest', type=Path)
+    plan.add_argument('--frozen-sha256')
     review = sub.add_parser('recommend')
     review.add_argument('--group', required=True)
     lookup = sub.add_parser('lookup')
@@ -45,6 +50,9 @@ def configure(parser):
     preflight = sub.add_parser('prepare-build')
     preflight.add_argument('--plan', required=True)
     preflight.add_argument('--output', required=True)
+    for parser in (plan, preflight, compare):
+        parser.add_argument('--release-tag', help='Use a clean, reviewed release for formal preflight')
+        parser.add_argument('--config-sha256', help='Required config digest for formal preflight')
     fixtures = sub.add_parser('exercise').add_mutually_exclusive_group()
     fixtures.add_argument('--image-fixtures',action='store_true')
     fixtures.add_argument('--build-fixtures',action='store_true')
@@ -62,11 +70,23 @@ def audit_path(project, path):
     return target
 
 
-def output_plan(db, output, reviewed_groups=(), candidate_queries=()):
+def output_plan(db, output, reviewed_groups=(), candidate_queries=(), *,
+                provenance=None, inputs=None):
     output = Path(output)
     if output.exists():
         raise ValueError('Plan output already exists; use a new directory')
     rows = index.files(db)
+    formal = provenance is not None and 'release_tag' in provenance
+    if formal:
+        from .organize_build import require_complete_sha
+        from .organize_sha import frozen_revisions
+        require_complete_sha(rows)
+        if not inputs or 'frozen-inventory.input.jsonl' not in inputs:
+            raise ValueError('Formal simulation requires a pinned frozen inventory')
+        frozen = frozen_revisions(inputs['frozen-inventory.input.jsonl'], provenance.get('frozen_sha256'))
+        current = {tuple(identity(row)):tuple(row[k] for k in ('size','mtime_ns','ctime_ns')) for row in rows}
+        if frozen != current:
+            raise ValueError('Current source identities differ from the frozen inventory')
     edges, outcomes, stale = evidence.current(db, rows)
     counts = Counter(tuple(edge[side][:2]) for edge in edges
                      if edge['relation'] in ('confirmed_same_capture','ambiguous','conflict','low_information')
@@ -99,6 +119,8 @@ def output_plan(db, output, reviewed_groups=(), candidate_queries=()):
     summary['validated_evidence_edges'] = len(edges)
     summary['stale_evidence_runs'] = stale
     summary['capacity_model'] = 'logical_bytes_for_present_indexed_paths_only'
+    summary.update(mode='formal_preflight' if formal else 'exploratory',
+                   execution_allowed=False, code_provenance=provenance)
     output.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix='.organize-plan-', dir=output.parent) as staging:
         root = Path(staging) / 'plan'
@@ -145,6 +167,15 @@ def output_plan(db, output, reviewed_groups=(), candidate_queries=()):
                     stream.write(index.encode(row)+'\n')
                 stream.flush()
                 os.fsync(stream.fileno())
+        summary['disposition_sha256'] = checksum(root/'inventory-disposition.jsonl')
+        if inputs:
+            summary['input_sha256'] = {}
+            for name, content in inputs.items():
+                with os.fdopen(os.open(root/name, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb') as stream:
+                    stream.write(content)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                summary['input_sha256'][name] = sha256(content).hexdigest()
         (root / 'summary.json').write_text(index.encode(summary)+'\n')
         if output.exists():
             raise ValueError('Plan output appeared while generating')
@@ -235,6 +266,16 @@ def run(args):
             return exercise_preflight()
         from .organize_exercise import exercise, exercise_images
         return exercise_images(project/'tools/exiftool/exiftool') if args.image_fixtures else exercise()
+    provenance = None
+    if command in ('simulate', 'prepare-build', 'reconcile'):
+        from .provenance import checkout
+        config_path = Path(args.config)
+        config = config_path.read_bytes() if config_path.exists() or args.release_tag is not None else None
+        config_digest = sha256(config).hexdigest() if config is not None else None
+        if (args.release_tag is not None and args.config_sha256 is None
+                or args.config_sha256 is not None and args.config_sha256 != config_digest):
+            raise ValueError('Formal preflight requires the exact pinned configuration SHA-256')
+        provenance = {**checkout(release_tag=args.release_tag), 'config_sha256':config_digest}
     if command == 'reconcile':
         from .organize_reconcile import reconcile
         manifests, checksums = [], {}
@@ -242,10 +283,13 @@ def run(args):
                                    ('destination',args.destination_manifest,args.destination_sha256)):
             raw = Path(name).read_bytes()
             checksums[side] = sha256(raw).hexdigest()
+            if args.release_tag and expected is None:
+                raise ValueError('Formal reconciliation requires both pinned manifest artifact digests')
             if expected is not None and expected!=checksums[side]:
                 raise ValueError(f'{side} manifest SHA-256 mismatch')
             manifests.append(json.loads(raw))
-        return {**reconcile(*manifests),'manifest_artifact_sha256':checksums}
+        return {**reconcile(*manifests, require_complete_sha=bool(args.release_tag)),
+                'manifest_artifact_sha256':checksums,'code_provenance':provenance}
     db_path = audit_path(project, args.database)
     with index.connect(db_path, write=command in ('register','ingest','ingest-evidence')) as db:
         if command in ('verify-evidence','ingest-evidence'):
@@ -270,18 +314,52 @@ def run(args):
         if command == 'status':
             return index.status(db)
         if command == 'manifest':
-            return source_manifest(db,args.source)
+            manifest = source_manifest(db,args.source)
+            if args.require_complete_sha:
+                from .organize_reconcile import validate
+                validate(manifest, require_complete_sha=True)
+            return manifest
         if command == 'match-sha':
             from .organize_sha import exact_matches
             return exact_matches(db,args.frozen_manifest,args.manifest_sha256,args.objects)
         if command == 'simulate':
-            reviewed = json.loads(Path(args.reviewed_groups).read_text()) if args.reviewed_groups else ()
-            queries = json.loads(Path(args.candidate_queries).read_text()) if args.candidate_queries else ()
-            return output_plan(db, audit_path(project, args.output), reviewed, queries)
+            inputs = {'config.snapshot.json': config}
+            if args.release_tag:
+                if not args.frozen_manifest or not args.frozen_sha256:
+                    raise ValueError('Formal simulation requires --frozen-manifest and --frozen-sha256')
+                inputs['frozen-inventory.input.jsonl'] = args.frozen_manifest.read_bytes()
+                provenance['frozen_sha256'] = args.frozen_sha256
+            elif args.frozen_manifest or args.frozen_sha256:
+                raise ValueError('Frozen inventory pinning requires a release tag')
+            for name, path in (('reviewed-groups.input.json',args.reviewed_groups),
+                               ('candidate-queries.input.json',args.candidate_queries)):
+                if path:
+                    inputs[name] = Path(path).read_bytes()
+            reviewed = json.loads(inputs.get('reviewed-groups.input.json',b'[]'))
+            queries = json.loads(inputs.get('candidate-queries.input.json',b'[]'))
+            return output_plan(db, audit_path(project, args.output), reviewed, queries,
+                               provenance=provenance, inputs=inputs if args.release_tag else None)
         if command == 'prepare-build':
             from .organize_build import prepare
-            disposition = Path(args.plan)/'inventory-disposition.jsonl'
-            return prepare(index.files(db), disposition, audit_path(project,args.output))
+            plan = Path(args.plan)
+            disposition = plan/'inventory-disposition.jsonl'
+            expected = None
+            if args.release_tag:
+                summary = json.loads((plan/'summary.json').read_bytes())
+                sealed_code = summary.get('code_provenance') or {}
+                if (summary.get('mode') != 'formal_preflight' or
+                        {k:v for k,v in sealed_code.items() if k != 'frozen_sha256'} != provenance):
+                    raise ValueError('Formal preflight requires a formal simulation at the same release and config')
+                for name, digest in (('config.snapshot.json', config_digest),
+                                     ('frozen-inventory.input.jsonl', sealed_code.get('frozen_sha256'))):
+                    if checksum(plan/name) != digest:
+                        raise ValueError(f'Formal simulation input changed: {name}')
+                provenance = sealed_code
+                expected = summary['disposition_sha256']
+                if not index.SHA256.fullmatch(expected):
+                    raise ValueError('Formal simulation disposition SHA-256 is invalid')
+            return prepare(index.files(db), disposition, audit_path(project,args.output),
+                           provenance=provenance, expected_disposition_sha256=expected)
         rows = index.files(db)
         if command == 'lookup':
             registered = {row[0] for row in db.execute('SELECT source_id FROM organize_sources')}

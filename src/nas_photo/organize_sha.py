@@ -6,8 +6,7 @@ import json
 from .organize_index import SHA256
 
 
-def exact_matches(db, frozen_path, frozen_sha256, objects_path):
-    data = frozen_path.read_bytes()
+def frozen_revisions(data, frozen_sha256):
     if sha256(data).hexdigest()!=frozen_sha256:
         raise ValueError('Frozen inventory checksum mismatch')
     frozen = {}
@@ -17,6 +16,11 @@ def exact_matches(db, frozen_path, frozen_sha256, objects_path):
         if key in frozen:
             raise ValueError('Repeated frozen source identity')
         frozen[key] = tuple(item['stat']) if item['state']=='present' else None
+    return frozen
+
+
+def exact_matches(db, frozen_path, frozen_sha256, objects_path):
+    frozen = frozen_revisions(frozen_path.read_bytes(), frozen_sha256)
     objects = objects_path.read_bytes()
     requests = {}
     for line in objects.splitlines():

@@ -9,13 +9,25 @@ from tempfile import TemporaryDirectory
 from .metadata import secure_path
 from .organize_decisions import destinations, identity, l0_key, quality
 from .organize_exercise import checksum, verified_copy
-from .organize_index import encode
+from .organize_index import SHA256, encode
 
 
-def prepare(rows, disposition, output):
+def require_complete_sha(rows):
+    incomplete = sum(row['state']!='present' or not SHA256.fullmatch(row['evidence'].get('sha256') or '')
+                     for row in rows)
+    if not rows or incomplete:
+        raise ValueError(f'Formal preflight requires SHA-256 for every frozen file ({incomplete}/{len(rows)} incomplete)')
+
+
+def prepare(rows, disposition, output, *, provenance=None, expected_disposition_sha256=None):
     """Check every frozen source revision and classify every destination."""
     if output.exists():
         raise FileExistsError('Build preflight already exists')
+    formal = provenance is not None and 'release_tag' in provenance
+    if formal:
+        require_complete_sha(rows)
+        if not expected_disposition_sha256:
+            raise ValueError('Formal build preflight requires a pinned simulation disposition')
     current = {tuple(identity(row)):row for row in rows}
     _, targets = destinations(row for row in rows if row['state']=='present')
     exact = defaultdict(list)
@@ -36,8 +48,11 @@ def prepare(rows, disposition, output):
         staged.mkdir()
         with (staged/'frozen-manifest.jsonl').open('wb') as frozen:
             for key,row in sorted(current.items()):
-                frozen.write((encode({'source':list(key),'state':row['state'],
-                                      'stat':[row[k] for k in ('size','mtime_ns','ctime_ns')]})+'\n').encode())
+                record = {'source':list(key),'state':row['state'],
+                          'stat':[row[k] for k in ('size','mtime_ns','ctime_ns')]}
+                if formal:
+                    record['sha256'] = row['evidence']['sha256']
+                frozen.write((encode(record)+'\n').encode())
             frozen.flush()
             os.fsync(frozen.fileno())
         manifest_sha = checksum(staged/'frozen-manifest.jsonl')
@@ -92,7 +107,10 @@ def prepare(rows, disposition, output):
                 os.fsync(stream.fileno())
         if current:
             raise ValueError('Disposition omitted source identities')
+        if expected_disposition_sha256 and input_digest.hexdigest() != expected_disposition_sha256:
+            raise ValueError('Simulation disposition SHA-256 mismatch')
         summary = {'policy':'l0_representatives_with_visual_annotations','execution_allowed':False,
+                   'mode':'formal_preflight' if formal else 'exploratory','code_provenance':provenance,
                    'inventory_rows':sum(counts.values()),'counts':dict(counts),'logical_bytes':dict(volume),
                    'ledger_states':dict(ledger_counts),'manifest_sha256':manifest_sha,
                    'planned_library_bytes':sum(size for name,size in volume.items() if name!='exact_copy_represented'),

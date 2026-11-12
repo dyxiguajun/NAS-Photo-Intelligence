@@ -9,9 +9,11 @@ import unittest
 
 from nas_photo import organize, organize_decisions as decisions, organize_index as index
 from nas_photo import organize_evidence as evidence
+from nas_photo.organize_build import prepare
 from nas_photo.organize_exercise import checksum, exercise, verified_copy
 from nas_photo.organize_reconcile import reconcile
 from nas_photo.organize_sha import exact_matches
+from nas_photo.provenance import checkout
 
 DIGEST = 'a' * 64
 
@@ -27,6 +29,64 @@ def item(path, *, source='restored', size=20, decode='valid', width=180, height=
 
 
 class InventoryTest(unittest.TestCase):
+    def test_formal_plan_requires_all_sha_and_seals_exact_l0_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
+            root = Path(tmp)
+            index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
+            original, alias = observation('original.jpg',sha256=DIGEST), observation('copy.jpg',sha256=DIGEST)
+            unique = observation('unique.png',size=21)
+            index.apply_batch(db,'one','v1',[original,alias,unique],coverage='complete')
+            code = {'release_tag':'fixture','config_sha256':'b'*64}
+            with self.assertRaisesRegex(ValueError,'1/3 incomplete'):
+                organize.output_plan(db, root/'simulation', provenance=code)
+            self.assertFalse((root/'simulation').exists())
+            unique['evidence']['sha256'] = 'c'*64
+            index.apply_batch(db,'one','v2',[original,alias,unique],coverage='complete')
+            simulation = root/'simulation'
+            manifest = ''.join(json.dumps({'source':['one',r['path']],'state':'present','stat':r['stat']})+'\n'
+                               for r in (original,alias,unique)).encode()
+            code['frozen_sha256'] = hashlib.sha256(manifest).hexdigest()
+            inputs = {'config.snapshot.json':b'{}','frozen-inventory.input.jsonl':manifest}
+            with self.assertRaisesRegex(ValueError,'inventory checksum mismatch'):
+                organize.output_plan(db, simulation, provenance={**code,'frozen_sha256':'d'*64}, inputs=inputs)
+            result = organize.output_plan(db, simulation, provenance=code, inputs=inputs)
+            disposition = simulation/'inventory-disposition.jsonl'
+            with self.assertRaisesRegex(ValueError,'disposition SHA-256 mismatch'):
+                prepare(index.files(db), disposition, root/'preflight',
+                        provenance=code, expected_disposition_sha256='d'*64)
+            build = prepare(index.files(db), disposition, root/'preflight', provenance=code,
+                            expected_disposition_sha256=result['disposition_sha256'])
+            self.assertFalse(build['execution_allowed'])
+            self.assertEqual(build['counts']['exact_copy_represented'],1)
+            frozen = [json.loads(line) for line in (root/'preflight/frozen-manifest.jsonl').read_bytes().splitlines()]
+            self.assertEqual([row['sha256'] for row in frozen],[DIGEST,DIGEST,'c'*64])
+            self.assertEqual(result['input_sha256']['config.snapshot.json'], hashlib.sha256(b'{}').hexdigest())
+
+    def test_provenance_distinguishes_dirty_diff_and_requires_clean_tag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def git(*args):
+                subprocess.run(['git','-C',str(root),'-c','user.name=Fixture','-c','user.email=fixture@example.test',
+                                *args],check=True,capture_output=True)
+            git('init')
+            source = root/'code.py'
+            source.write_text('original\n')
+            git('add','code.py')
+            git('commit','-m','fixture')
+            git('tag','fixture')
+            clean = checkout(root, release_tag='fixture')
+            with self.assertRaisesRegex(ValueError,'specified release tag'):
+                checkout(root, release_tag='unrelated')
+            source.write_text('staged\n')
+            git('add','code.py')
+            source.write_text('original\n')
+            dirty = checkout(root)
+            self.assertEqual(dirty['git_head'], clean['git_head'])
+            self.assertTrue(dirty['git_dirty'])
+            self.assertNotEqual(dirty['tracked_diff_sha256'], clean['tracked_diff_sha256'])
+            with self.assertRaisesRegex(ValueError,'clean checkout'):
+                checkout(root, release_tag='fixture')
+
     def test_object_sha_lookup_uses_frozen_revision_and_does_not_export_paths(self):
         with tempfile.TemporaryDirectory() as tmp, index.connect(Path(tmp)/'audit.sqlite3',write=True) as db:
             index.register_sources(db,[{'source_id':'one','device_id':'test','logical_root':'first'}])
@@ -302,6 +362,11 @@ class EvidenceTest(unittest.TestCase):
         self.assertFalse(plan['all_content_verified'])
         complete = snapshot('US',True,[('photo.jpg',10,DIGEST)])
         self.assertTrue(reconcile(complete,{**complete,'scope':'CN'})['all_content_verified'])
+        for incomplete in (left, {**complete,'complete':False}):
+            with self.assertRaisesRegex(ValueError,'SHA-256 for every file'):
+                reconcile(incomplete,complete,require_complete_sha=True)
+        self.assertTrue(reconcile(complete,{**complete,'scope':'CN'},
+                                  require_complete_sha=True)['all_content_verified'])
 
     def test_bad_copy_never_published(self):
         with tempfile.TemporaryDirectory() as tmp:
