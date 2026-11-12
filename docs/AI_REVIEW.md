@@ -1,10 +1,29 @@
 # 外部 AI 审查入口
 
-本仓库是 **私有仓库**。ChatGPT、Claude Chat 或其他外部审查者只有在获得该 GitHub 仓库的授权访问后才能读取。请勿要求上传生产照片、原始 SQLite、完整恢复索引或 NAS 凭据。
+本仓库当前为 **public**。ChatGPT、Claude Chat 或其他外部审查者可直接读取，无需 GitHub 登录或授权凭据。请勿要求上传生产照片、原始 SQLite、完整恢复索引或 NAS 凭据。
 
 本文件是外部 AI 审查的单一入口，不替代本地权威状态。运行时权威状态以 Codex 维护的 `reports/agent-coordination/STATE.json` 与 `PROJECT_STATUS.md` 为准；该目录不进入 Git。
 
-最后核对：2026-11-11（America/Los_Angeles）；当前 `main` 合并提交 `1db99b6`（PR #3）。外部 AI 审查入口本身由 PR #2 `c6023f4` 引入；最新提交始终以 GitHub `main` HEAD 为准。
+最后核对：2026-11-11（America/Los_Angeles）；核对时 `main` 合并提交为 `563ece0`（PR #5）。最新提交始终以 GitHub `main` HEAD 为准。
+
+### 纯文本访问地址（推荐给 ChatGPT / Claude）
+
+GitHub 页面若受脚本、登录或抓取限制，直接读取以下 raw 文件：
+
+| 用途 | 地址 |
+|---|---|
+| AI 审查入口 | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/AI_REVIEW.md` |
+| README | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/README.md` |
+| 架构 | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/ARCHITECTURE.md` |
+| 当前状态 | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/maintenance/STATE.md` |
+| 任务队列 | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/maintenance/TASKS.md` |
+| DataRestore1 摘要 | `https://raw.githubusercontent.com/dyxiguajun/NAS-Photo-Intelligence/main/docs/datarestore-audit/README.md` |
+
+raw 不可达时的镜像前缀：`https://cdn.jsdelivr.net/gh/dyxiguajun/NAS-Photo-Intelligence@main/`（例如追加 `docs/AI_REVIEW.md`）。
+
+以上 GitHub/raw/jsDelivr 地址已于 2026-11-11 用匿名请求验证 HTTP 200，不需要 GitHub 登录。
+
+公开范围包括源码、测试和说明文档；生产媒体、原始 SQLite、完整恢复索引、凭据和未脱敏日志不进入 Git。
 
 ## 1. 项目用途
 
@@ -27,21 +46,23 @@ NAS-Photo-Intelligence 是一个**只读照片证据引擎**，用于整理中�
 | `docs/maintenance/STATE.md` | OpenCode 当前状态、CI、GitHub 限制 |
 | `docs/maintenance/SECURITY_AUDIT.md` | 脱敏、排除边界、残余风险 |
 | `docs/maintenance/TASKS.md` | OpenCode 任务队列与验收条件 |
+| `docs/datarestore-audit/README.md` | DataRestore1 损坏容器恢复与去重审计摘要 |
 | `.github/workflows/ci.yml` | 实际 CI 步骤 |
 | `tests/` | 可运行回归测试（合成数据） |
 | `config/example.json` | 脱敏配置模板 |
 
 ## 3. 当前可验证状态
 
-- 仓库：`dyxiguajun/NAS-Photo-Intelligence`，private，默认分支 `main`。
-- 当前 `main`：`1db99b6eaa7906bca1584191270d91ef3e43f7d6`（PR #3）；PR #2 已引入本审查入口，PR #3 增加 lockfile 恢复测试。
-- CI：Python 3.12 / 3.13 均通过（PR #3 run 43111838081：1m47s / 1m45s）。
-- 跟踪文件：88 个（基线 85 + AI 审查入口/`pre-push` + lockfile 测试）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
+- 仓库：`dyxiguajun/NAS-Photo-Intelligence`，public，默认分支 `main`。
+- 核对时 `main`：`563ece0566afa604f3fc033699514953193fbd86`（PR #5）；PR #2 引入本审查入口，PR #3 增加 lockfile 恢复测试，PR #5 公开 DataRestore1 审计摘要。
+- CI：Python 3.12 / 3.13 均通过（PR #5 run 43140352724；main push run 43140687726）。
+- 跟踪文件：95 个（新增 7 个 DataRestore1 脱敏说明文档）；无生产媒体、SQLite、CSV/JSONL、日志、报告数据目录或凭据。
 - 回归测试：干净 worktree 中 `117` 项通过（含 5 个 lockfile 恢复用例）。
 - 静态检查：`ruff check src tests tools` 通过。
-- 密钥扫描：自研扫描器 clean；`gitleaks` 对历史扫描无泄漏。
+- 密钥扫描：自研扫描器 clean（95 files）；`gitleaks` 18 commits no leaks。
 - 已交付：`tests/test_locked_batch.py` 验证第二实例 exit 75、SIGKILL 后已提交产物保留、进程/子进程退出后解锁、待办重做。
-- 正在处理：NAS-005 的断线、ENOSPC、重复启动与冻结清单对账；PNG 损坏/拼接/截断解析（P1）；DSH 的 G2.2 高清参考索引；Codex 的整理/迁移生产前验证。
+- DataRestore1 摘要：205 个损坏容器 / 42.63 GB；16,974 个唯一媒体对象，15,449 个可解码，1,352 个高清；详细结论与 7 个缺陷复盘见 `docs/datarestore-audit/`。
+- 正在处理：NAS-005 的断线、ENOSPC、重复启动与冻结清单对账；PNG 损坏/拼接/截断解析（P1）；DSH 高清索引重算与 C 层 3 个对象像素复核；Codex 的整理/迁移生产前验证。
 
 ## 4. 关键源码路径
 
@@ -100,7 +121,8 @@ python3 -m venv .venv
 
 ## 8. 已知风险与限制
 
-- GitHub Free 私有仓库不支持服务端分支保护/rulesets，secret scanning/push protection 也不可用；当前依靠 PR 约定、CI 和本地 `pre-push` 防护。升级 GitHub Pro 需用户决策。
+- 仓库当前公开全部源码、测试和说明文档；如果只想公开“项目概览”而不公开详细代码，需要改为私有仓库 + 独立公开文档仓库/Pages，需用户/Codex 决策。
+- 当前 public 仓库尚未启用服务端分支保护/rulesets 与 secret scanning（API 404）；依靠 PR 约定、CI 和本地 `pre-push` 防护。GitHub Free public 仓库可启用这些能力，等待确认后配置。
 - `pyproject.toml` 声明 `requires-python >=3.11`，但 `requirements-visual.txt` 中 numpy/scipy 要求 Python >=3.12；CI 当前矩阵为 3.12/3.13。
 - 视觉候选尚未人工确认；相似度不是概率，也不能作为删除授权。
 - 正式照片库构建、双 NAS 迁移和生产媒体操作仍需 Codex/用户授权与验收。
