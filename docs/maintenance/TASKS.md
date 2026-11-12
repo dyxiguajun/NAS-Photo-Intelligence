@@ -20,8 +20,8 @@
 | OC-013 | P1 | done | 建立外部 AI 审查入口并同步 GitHub 可读状态 | `docs/AI_REVIEW.md`、README/架构链接、脱敏检查；PR #2 合并（`c6023f4`） |
 | OC-014 | P1 | blocked | public 仓库分支保护/secret scanning 决策 | 当前 API 404/未启用；需确认不阻断 Codex 集成后配置；本地 pre-push + PR + CI 为补偿 |
 | OC-015 | P0 | done | NAS-005 固定 lockfile 单实例/SIGKILL 恢复测试 | PR #3 合并（`1db99b6`）；5 个生成 fixture 用例；全量 117 项通过；CI 3.12/3.13 绿 |
-| OC-016 | P1 | done | 外部 AI 公开访问验证与文档同步 | 匿名 GitHub/raw/jsDelivr 均 200；`docs/AI_REVIEW.md` 提供纯文本地址；README/状态/安全文档更新 |
-| OC-017 | P1 | queued | DataRestore1 公开文档脱敏复核 | 1 个示例容器名与 3 个对象 SHA-256 前缀；由 DSH/Codex 决定替换为占位符或保留 |
+| OC-016 | P1 | done | 外部 AI 公开访问验证与文档同步 | PR #7 合并（`8182720`）；匿名 GitHub/raw/jsDelivr 均 200；`docs/AI_REVIEW.md` 提供纯文本地址；README/状态/安全文档更新；PR #6 C 层验证已计入 |
+| OC-017 | P1 | queued | DataRestore1 公开文档脱敏复核 | 1 个示例容器名与 3 个对象 SHA-256 前缀；`06-open-items.md` 6.2 仍保留“未做 NCC 全验”的过期勾选；由 DSH/Codex 决定替换或修正 |
 
 ## 工作循环
 
